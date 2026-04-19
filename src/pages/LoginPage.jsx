@@ -5,10 +5,10 @@ import { Button, Input } from '../components';
 
 const LoginPage = () => {
   const navigate = useNavigate();
-  const { login } = useAuthContext();
+  const { login, loading } = useAuthContext();
+
   const [formData, setFormData] = useState({ email: '', password: '' });
   const [errors, setErrors] = useState({});
-  const [loading, setLoading] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
 
   const handleChange = (e) => {
@@ -19,9 +19,14 @@ const LoginPage = () => {
 
   const validate = () => {
     const newErrors = {};
-    if (!formData.email) newErrors.email = 'Email không được để trống';
-    else if (!/\S+@\S+\.\S+/.test(formData.email)) newErrors.email = 'Email không hợp lệ';
-    if (!formData.password) newErrors.password = 'Mật khẩu không được để trống';
+    if (!formData.email) {
+      newErrors.email = 'Email không được để trống';
+    } else if (!/\S+@\S+\.\S+/.test(formData.email)) {
+      newErrors.email = 'Email không hợp lệ';
+    }
+    if (!formData.password) {
+      newErrors.password = 'Mật khẩu không được để trống';
+    }
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -29,14 +34,20 @@ const LoginPage = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!validate()) return;
-    setLoading(true);
+
     try {
       await login(formData);
       navigate('/');
     } catch (error) {
-      setErrors({ general: 'Email hoặc mật khẩu không đúng' });
-    } finally {
-      setLoading(false);
+      // Ưu tiên lấy validation error từ API, fallback sang message
+      const serverErrors = error.validationErrors || {};
+      setErrors({
+        ...(serverErrors.email ? { email: serverErrors.email } : {}),
+        ...(serverErrors.password ? { password: serverErrors.password } : {}),
+        ...(!serverErrors.email && !serverErrors.password
+          ? { general: error.message || 'Email hoặc mật khẩu không đúng' }
+          : {}),
+      });
     }
   };
 
@@ -65,23 +76,63 @@ const LoginPage = () => {
 
       {/* Form */}
       <form onSubmit={handleSubmit} className="space-y-4">
-        {errors.general && <div className="p-3 bg-[#ffdad6] text-[#93000a] rounded-xl text-sm">{errors.general}</div>}
-        <Input label="Email" type="email" name="email" placeholder="email@example.com" value={formData.email} onChange={handleChange} error={errors.email} icon="mail" />
-        <Input label="Mật khẩu" type="password" name="password" placeholder="••••••••" value={formData.password} onChange={handleChange} error={errors.password} icon="lock" />
+        {errors.general && (
+          <div className="p-3 bg-[#ffdad6] text-[#93000a] rounded-xl text-sm">
+            {errors.general}
+          </div>
+        )}
+        <Input
+          label="Email"
+          type="email"
+          name="email"
+          placeholder="email@example.com"
+          value={formData.email}
+          onChange={handleChange}
+          error={errors.email}
+          icon="mail"
+        />
+        <Input
+          label="Mật khẩu"
+          type="password"
+          name="password"
+          placeholder="••••••••"
+          value={formData.password}
+          onChange={handleChange}
+          error={errors.password}
+          icon="lock"
+        />
 
         <div className="flex items-center justify-between">
           <label className="flex items-center gap-2 cursor-pointer">
-            <input type="checkbox" checked={rememberMe} onChange={(e) => setRememberMe(e.target.checked)} className="w-4 h-4 rounded border-[#c2c6d3] text-[#003974] focus:ring-[#003974]" />
+            <input
+              type="checkbox"
+              checked={rememberMe}
+              onChange={(e) => setRememberMe(e.target.checked)}
+              className="w-4 h-4 rounded border-[#c2c6d3] text-[#003974] focus:ring-[#003974]"
+            />
             <span className="text-sm text-[#424751]">Ghi nhớ mật khẩu</span>
           </label>
-          <Link to="/forgot-password" className="text-sm text-[#003974] hover:underline">Quên mật khẩu?</Link>
+          <Link to="/forgot-password" className="text-sm text-[#003974] hover:underline">
+            Quên mật khẩu?
+          </Link>
         </div>
 
-        <Button type="submit" variant="primary" size="lg" fullWidth loading={loading}>Đăng Nhập</Button>
+        <Button
+          type="submit"
+          variant="primary"
+          size="lg"
+          fullWidth
+          loading={loading}
+        >
+          Đăng Nhập
+        </Button>
       </form>
 
       <p className="mt-6 text-center text-[#424751]">
-        Chưa có tài khoản? <Link to="/register" className="text-[#003974] font-semibold hover:underline">Đăng ký ngay</Link>
+        Chưa có tài khoản?{' '}
+        <Link to="/register" className="text-[#003974] font-semibold hover:underline">
+          Đăng ký ngay
+        </Link>
       </p>
     </div>
   );
