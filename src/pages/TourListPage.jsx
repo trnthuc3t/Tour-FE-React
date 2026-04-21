@@ -1,10 +1,12 @@
 import { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { TourCard, LoadingSpinner, Input } from '../components';
-import { tourService } from '../services/tourService';
+import { productService } from '../services/productService';
 import { useDebounce } from '../hooks';
 
 const TourListPage = () => {
-  const [tours, setTours] = useState([]);
+  const [products, setProducts] = useState([]);
+  const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [filters, setFilters] = useState({ destination: '', priceMin: 0, priceMax: 50000000, duration: '', rating: 0 });
@@ -13,19 +15,39 @@ const TourListPage = () => {
   const debouncedFilters = useDebounce(filters, 300);
 
   useEffect(() => {
-    const fetchTours = async () => {
+    const fetchProducts = async () => {
       setLoading(true);
       try {
-        const params = { destination: debouncedFilters.destination || debouncedSearch, ...debouncedFilters };
-        const response = await tourService.getTours(params);
-        setTours(response.data.tours);
+        const params = {
+          search: debouncedFilters.destination || debouncedSearch,
+          limit: 20,
+          offset: 0,
+        };
+        const data = await productService.getProducts(params);
+        // Map Odoo product sang format TourCard
+        const mapped = (data.products || []).map(p => ({
+          id: p.id,
+          name: p.name,
+          destination: p.destination || 'Việt Nam',
+          duration: p.duration || '3 Ngày 2 Đêm',
+          durationDays: p.durationDays || 3,
+          rating: p.rating || 4.5,
+          reviewCount: p.reviewCount || 0,
+          price: p.list_price || 0,
+          badge: p.badge || '',
+          badgeType: p.badgeType || 'primary',
+          image: p.image_url || p.image || '',
+        }));
+        setProducts(mapped);
+        setTotal(data.total || 0);
       } catch (error) {
-        console.error('Failed to fetch tours:', error);
+        console.error('Failed to fetch products:', error);
+        setProducts([]);
       } finally {
         setLoading(false);
       }
     };
-    fetchTours();
+    fetchProducts();
   }, [debouncedSearch, debouncedFilters]);
 
   const durationOptions = [{ label: 'Tất cả', value: '' }, { label: '1-3 ngày', value: '1-3' }, { label: '4-7 ngày', value: '4-7' }, { label: '8+ ngày', value: '8+' }];
@@ -36,7 +58,7 @@ const TourListPage = () => {
       <div className="bg-[#eceef0] pt-24 pb-12">
         <div className="container-main">
           <h1 className="text-3xl md:text-4xl font-bold text-[#003974] mb-2">Khám Phá Các Tour Du Lịch</h1>
-          <p className="text-[#424751]">Hơn 128 tour du lịch đang chờ bạn khám phá</p>
+          <p className="text-[#424751]">Hơn {total || 0} tour du lịch đang chờ bạn khám phá</p>
         </div>
       </div>
 
@@ -97,11 +119,11 @@ const TourListPage = () => {
             </div>
           </aside>
 
-          {/* Tour Grid */}
+          {/* Product Grid */}
           <main className="flex-1">
             {loading ? (
               <LoadingSpinner fullScreen />
-            ) : tours.length === 0 ? (
+            ) : products.length === 0 ? (
               <div className="text-center py-16">
                 <span className="material-symbols-outlined text-6xl text-[#c2c6d3]">search_off</span>
                 <h3 className="text-xl font-bold text-[#191c1e] mt-4">Không tìm thấy tour</h3>
@@ -109,13 +131,41 @@ const TourListPage = () => {
               </div>
             ) : (
               <>
-                <p className="text-sm text-[#424751] mb-4">Tìm thấy <span className="font-semibold">{tours.length}</span> tour</p>
+                <p className="text-sm text-[#424751] mb-4">Tìm thấy <span className="font-semibold">{products.length}</span> tour</p>
                 <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6">
-                  {tours.map((tour) => <TourCard key={tour.id} tour={tour} />)}
-                </div>
-                <div className="flex justify-center mt-12 gap-2">
-                  {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map((page) => (
-                    <button key={page} className={`w-10 h-10 rounded-lg font-medium transition-colors ${page === 1 ? 'bg-[#003974] text-white' : 'bg-white text-[#424751] hover:bg-[#f2f4f6]'}`}>{page}</button>
+                  {products.map((product) => (
+                    <Link key={product.id} to={`/product/${product.id}`} className="card group block">
+                      {/* Image */}
+                      <div className="relative aspect-[4/3] overflow-hidden rounded-t-xl">
+                        {product.image ? (
+                          <img src={product.image} alt={product.name} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" />
+                        ) : (
+                          <div className="w-full h-full bg-[#eceef0] flex items-center justify-center">
+                            <span className="material-symbols-outlined text-6xl text-[#c2c6d3]">image</span>
+                          </div>
+                        )}
+                        {product.badge && (
+                          <span className="absolute top-3 left-3 badge bg-[#00509d] text-white">{product.badge}</span>
+                        )}
+                      </div>
+
+                      {/* Content */}
+                      <div className="p-4">
+                        <p className="label-caps mb-2">{product.destination}</p>
+                        <h3 className="font-semibold text-[#191c1e] mb-2 line-clamp-2 group-hover:text-[#003974] transition-colors">{product.name}</h3>
+
+                        {/* Price */}
+                        <div className="flex items-center justify-between pt-3 border-t border-[#e0e3e5]">
+                          <div>
+                            <span className="text-xs text-[#424751]">Giá từ</span>
+                            <p className="text-lg font-bold text-[#003974]">
+                              {new Intl.NumberFormat('vi-VN').format(product.price || 0)}đ<span className="text-xs font-normal text-[#424751]"> / khách</span>
+                            </p>
+                          </div>
+                          <span className="material-symbols-outlined text-[#003974] group-hover:translate-x-1 transition-transform">arrow_forward</span>
+                        </div>
+                      </div>
+                    </Link>
                   ))}
                 </div>
               </>
