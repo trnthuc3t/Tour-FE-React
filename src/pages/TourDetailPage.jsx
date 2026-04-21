@@ -1,9 +1,78 @@
 import { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { Button, LoadingSpinner, Modal } from '../components';
-import { tourService } from '../services/tourService';
+import { productService } from '../services/productService';
 import { formatPrice, generateStarRating } from '../utils';
 import { useAuthContext } from '../context/AuthContext';
+
+const ODOO_BASE_URL = (import.meta.env.VITE_ODOO_URL || '').replace(/\/$/, '');
+
+const stripHtml = (html = '') =>
+  html
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+const toAbsoluteAssetUrl = (value = '') => {
+  if (!value || /^(https?:|data:|blob:|mailto:|tel:|#)/i.test(value)) {
+    return value;
+  }
+
+  if (!ODOO_BASE_URL) {
+    return value;
+  }
+
+  return value.startsWith('/') ? `${ODOO_BASE_URL}${value}` : `${ODOO_BASE_URL}/${value}`;
+};
+
+const normalizeSrcSet = (srcset = '') =>
+  srcset
+    .split(',')
+    .map((entry) => entry.trim())
+    .filter(Boolean)
+    .map((entry) => {
+      const [url, descriptor] = entry.split(/\s+/, 2);
+      const normalizedUrl = toAbsoluteAssetUrl(url);
+      return descriptor ? `${normalizedUrl} ${descriptor}` : normalizedUrl;
+    })
+    .join(', ');
+
+const normalizeDetailInformation = (html = '') => {
+  if (!html || typeof window === 'undefined') {
+    return html;
+  }
+
+  const parser = new window.DOMParser();
+  const doc = parser.parseFromString(html, 'text/html');
+
+  doc.querySelectorAll('img, source, iframe, video').forEach((element) => {
+    const src = element.getAttribute('src');
+    if (src) {
+      element.setAttribute('src', toAbsoluteAssetUrl(src));
+    }
+
+    const poster = element.getAttribute('poster');
+    if (poster) {
+      element.setAttribute('poster', toAbsoluteAssetUrl(poster));
+    }
+
+    const srcset = element.getAttribute('srcset');
+    if (srcset) {
+      element.setAttribute('srcset', normalizeSrcSet(srcset));
+    }
+  });
+
+  doc.querySelectorAll('a').forEach((anchor) => {
+    const href = anchor.getAttribute('href');
+    if (href) {
+      anchor.setAttribute('href', toAbsoluteAssetUrl(href));
+    }
+    anchor.setAttribute('target', '_blank');
+    anchor.setAttribute('rel', 'noreferrer noopener');
+  });
+
+  return doc.body.innerHTML;
+};
 
 const TourDetailPage = () => {
   const { id } = useParams();
@@ -18,9 +87,31 @@ const TourDetailPage = () => {
     const fetchTour = async () => {
       setLoading(true);
       try {
-        const response = await tourService.getTourById(id);
-        setTour(response.data);
-        if (response.data.itinerary?.length > 0) setActiveDay(response.data.itinerary[0].day);
+        const response = await productService.getProductById(id);
+        const product = response?.product || {};
+        const detailInformation = normalizeDetailInformation(product.detail_information || '');
+        const detailText = stripHtml(detailInformation);
+
+        const mappedTour = {
+          id: product.id,
+          name: product.name || 'Sản phẩm du lịch',
+          destination: 'Việt Nam',
+          duration: '3 Ngày 2 Đêm',
+          rating: 4.5,
+          reviewCount: 0,
+          price: product.list_price || 0,
+          badge: '',
+          image: product.image_url || '',
+          description: product.description || detailText || 'Chưa có mô tả cho sản phẩm này.',
+          detailInformation,
+          highlights: [],
+          itinerary: [],
+          includes: [],
+          excludes: [],
+          reviews: [],
+        };
+
+        setTour(mappedTour);
       } catch (error) {
         console.error('Failed to fetch tour:', error);
       } finally {
@@ -51,7 +142,11 @@ const TourDetailPage = () => {
     <div className="min-h-screen bg-[#f7f9fb]">
       {/* Hero Section */}
       <section className="relative h-[70vh] min-h-[500px]">
-        <img src={tour.image} alt={tour.name} className="w-full h-full object-cover" />
+        {tour.image ? (
+          <img src={tour.image} alt={tour.name} className="w-full h-full object-cover" />
+        ) : (
+          <div className="w-full h-full bg-gradient-to-r from-[#003974] to-[#00509d]" />
+        )}
         <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/30 to-transparent" />
         <Link to="/tours" className="absolute top-24 left-4 md:left-8 flex items-center gap-2 px-4 py-2 bg-white/20 backdrop-blur-sm rounded-full text-white hover:bg-white/30 transition-colors">
           <span className="material-symbols-outlined">arrow_back</span><span className="hidden sm:inline">Quay lại</span>
@@ -93,59 +188,22 @@ const TourDetailPage = () => {
               </div>
             </section>
 
-            {/* Itinerary */}
+            {/* Detail Information */}
             <section className="bg-white rounded-2xl p-6 md:p-8 editorial-shadow">
-              <h2 className="text-2xl font-bold text-[#191c1e] mb-6">Lịch Trình Chi Tiết</h2>
-              <div className="flex gap-2 mb-6 overflow-x-auto pb-2">
-                {tour.itinerary?.map((day) => (
-                  <button key={day.day} onClick={() => setActiveDay(day.day)} className={`px-4 py-2 rounded-lg font-medium whitespace-nowrap transition-colors ${activeDay === day.day ? 'hero-gradient text-white' : 'bg-[#f2f4f6] text-[#424751] hover:bg-[#eceef0]'}`}>Ngày {day.day}</button>
-                ))}
-              </div>
-              {tour.itinerary?.map((day) => (
-                <div key={day.day} className={activeDay === day.day ? 'block' : 'hidden'}>
-                  <h3 className="text-xl font-bold text-[#191c1e] mb-2">Ngày {day.day}: {day.title}</h3>
-                  <p className="text-[#424751] leading-relaxed">{day.description}</p>
-                </div>
-              ))}
+              <h2 className="text-2xl font-bold text-[#191c1e] mb-6">Thông Tin Chi Tiết</h2>
+              {tour.detailInformation ? (
+                <div
+                  className="text-[#424751] leading-relaxed [&_h1]:mb-4 [&_h1]:text-3xl [&_h1]:font-bold [&_h1]:text-[#191c1e] [&_h2]:mb-4 [&_h2]:mt-8 [&_h2]:text-2xl [&_h2]:font-bold [&_h2]:text-[#191c1e] [&_h3]:mb-3 [&_h3]:mt-6 [&_h3]:text-xl [&_h3]:font-semibold [&_h3]:text-[#191c1e] [&_h4]:mb-3 [&_h4]:mt-5 [&_h4]:text-lg [&_h4]:font-semibold [&_h4]:text-[#191c1e] [&_p]:mb-4 [&_p]:whitespace-pre-line [&_ul]:mb-4 [&_ul]:list-disc [&_ul]:pl-6 [&_ol]:mb-4 [&_ol]:list-decimal [&_ol]:pl-6 [&_li]:mb-2 [&_img]:my-6 [&_img]:w-full [&_img]:rounded-2xl [&_img]:object-cover [&_figure]:my-6 [&_figure]:overflow-hidden [&_figure]:rounded-2xl [&_table]:my-6 [&_table]:w-full [&_table]:border-collapse [&_table]:overflow-hidden [&_table]:rounded-xl [&_tbody_tr:nth-child(even)]:bg-[#f7f9fb] [&_td]:border [&_td]:border-[#e0e3e5] [&_td]:p-3 [&_th]:border [&_th]:border-[#e0e3e5] [&_th]:bg-[#f2f4f6] [&_th]:p-3 [&_th]:text-left [&_blockquote]:my-6 [&_blockquote]:border-l-4 [&_blockquote]:border-[#00509d] [&_blockquote]:bg-[#f7f9fb] [&_blockquote]:px-4 [&_blockquote]:py-3 [&_a]:font-semibold [&_a]:text-[#00509d] [&_a]:underline [&_iframe]:my-6 [&_iframe]:aspect-video [&_iframe]:w-full [&_iframe]:rounded-2xl"
+                  dangerouslySetInnerHTML={{ __html: tour.detailInformation }}
+                />
+              ) : (
+                <p className="text-[#424751]">Sản phẩm này chưa có nội dung Detail Information.</p>
+              )}
             </section>
 
-            {/* Includes/Excludes */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <section className="bg-white rounded-2xl p-6 editorial-shadow">
-                <h3 className="text-lg font-bold text-[#191c1e] mb-4 flex items-center gap-2"><span className="material-symbols-outlined text-[#00509d]">check_circle</span>Bao Gồm</h3>
-                <ul className="space-y-2">
-                  {tour.includes?.map((item, idx) => (
-                    <li key={idx} className="flex items-center gap-2 text-[#424751]"><span className="material-symbols-outlined text-sm text-[#00509d]">check</span>{item}</li>
-                  ))}
-                </ul>
-              </section>
-              <section className="bg-white rounded-2xl p-6 editorial-shadow">
-                <h3 className="text-lg font-bold text-[#191c1e] mb-4 flex items-center gap-2"><span className="material-symbols-outlined text-[#ba1a1a]">cancel</span>Không Bao Gồm</h3>
-                <ul className="space-y-2">
-                  {tour.excludes?.map((item, idx) => (
-                    <li key={idx} className="flex items-center gap-2 text-[#424751]"><span className="material-symbols-outlined text-sm text-[#ba1a1a]">close</span>{item}</li>
-                  ))}
-                </ul>
-              </section>
-            </div>
-
-            {/* Reviews */}
             <section className="bg-white rounded-2xl p-6 md:p-8 editorial-shadow">
-              <h2 className="text-2xl font-bold text-[#191c1e] mb-6">Đánh Giá Từ Khách Hàng</h2>
-              <div className="space-y-6">
-                {tour.reviews?.map((review, idx) => (
-                  <div key={idx} className="p-4 bg-[#f2f4f6] rounded-xl">
-                    <div className="flex items-center gap-3 mb-2">
-                      <div className="w-10 h-10 rounded-full bg-[#003974] text-white flex items-center justify-center font-bold">{review.name.charAt(0)}</div>
-                      <div>
-                        <p className="font-semibold text-[#191c1e]">{review.name}</p>
-                        <div className="flex">{[...Array(review.rating)].map((_, i) => <span key={i} className="material-symbols-outlined text-sm text-[#fe9400]">star</span>)}</div>
-                      </div>
-                    </div>
-                    <p className="text-[#424751]">{review.comment}</p>
-                  </div>
-                ))}
-              </div>
+              <h2 className="text-2xl font-bold text-[#191c1e] mb-3">Thông Tin Sản Phẩm</h2>
+              <p className="text-[#424751]">Mã sản phẩm: <span className="font-semibold">#{tour.id}</span></p>
             </section>
           </div>
 
@@ -175,7 +233,7 @@ const TourDetailPage = () => {
               { id: 3, name: 'Maldives: Thiên Đường Nhiệt Đới', duration: '5 Ngày', price: '45.000.000₫', image: 'https://images.unsplash.com/photo-1514282401047-d79a71a590e8?w=400&q=80' },
               { id: 7, name: 'Đà Lạt: Thành Phố Ngàn Hoa', duration: '3 Ngày', price: '4.500.000₫', image: 'https://images.unsplash.com/photo-1583417319070-4a69db38a482?w=400&q=80' },
             ].map((related) => (
-              <Link key={related.id} to={`/tour/tour-00${related.id}`} className="flex-shrink-0 w-64 card">
+              <Link key={related.id} to={`/tour/${related.id}`} className="flex-shrink-0 w-64 card">
                 <div className="aspect-[4/3] overflow-hidden rounded-t-xl"><img src={related.image} alt={related.name} className="w-full h-full object-cover" /></div>
                 <div className="p-3"><h4 className="font-semibold text-sm text-[#191c1e] line-clamp-2">{related.name}</h4><p className="text-xs text-[#424751] mt-1">{related.duration} | {related.price}</p></div>
               </Link>

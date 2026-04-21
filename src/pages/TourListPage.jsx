@@ -134,7 +134,7 @@ const TourListPage = () => {
                 <p className="text-sm text-[#424751] mb-4">Tìm thấy <span className="font-semibold">{products.length}</span> tour</p>
                 <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6">
                   {products.map((product) => (
-                    <Link key={product.id} to={`/product/${product.id}`} className="card group block">
+                    <Link key={product.id} to={`/tour/${product.id}`} className="card group block">
                       {/* Image */}
                       <div className="relative aspect-[4/3] overflow-hidden rounded-t-xl">
                         {product.image ? (

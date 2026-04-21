@@ -125,7 +125,7 @@ const HomePage = () => {
               featuredProducts.map((product) => {
                 const badgeColors = { primary: 'bg-[#00509d] text-white', secondary: 'bg-[#fe9400] text-white', success: 'bg-[#b3ebff] text-[#001f27]' };
                 return (
-                  <Link key={product.id} to={`/product/${product.id}`} className="card group block">
+                  <Link key={product.id} to={`/tour/${product.id}`} className="card group block">
                     <div className="relative aspect-[4/3] overflow-hidden rounded-t-xl">
                       {product.image ? (
                         <img src={product.image} alt={product.name} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" />
