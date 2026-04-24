@@ -47,6 +47,48 @@ export const productService = {
       throw error;
     }
   },
+
+  /**
+   * Tu dong bung tat ca combo items theo so luong moi combo.
+   * @param {number} productId
+   * @param {Object} comboQuantities - { [comboId]: quantity }
+   */
+  prepareComboItems: async (productId, comboQuantities = {}) => {
+    try {
+      const response = await apiClient.post(`/api/products/${productId}/combo-items`, {
+        combo_quantities: comboQuantities,
+      });
+      const result = response.data;
+
+      if (result.code === 200) {
+        return result.response; // { product_id, expanded_items, warnings }
+      }
+
+      throw new Error(result.message || 'Khong the xu ly combo items');
+    } catch (error) {
+      console.error('[productService] prepareComboItems error:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * Tao don hang tren Odoo.
+   */
+  createOrder: async (payload) => {
+    try {
+      const response = await apiClient.post('/api/orders', payload);
+      const result = response.data;
+
+      if (result.code === 201 || result.code === 200) {
+        return result.response;
+      }
+
+      throw new Error(result.message || 'Khong the tao don hang');
+    } catch (error) {
+      console.error('[productService] createOrder error:', error);
+      throw error;
+    }
+  },
 };
 
 export default productService;

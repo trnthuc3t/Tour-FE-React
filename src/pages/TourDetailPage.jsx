@@ -104,6 +104,10 @@ const TourDetailPage = () => {
           image: product.image_url || '',
           description: product.description || detailText || 'Chưa có mô tả cho sản phẩm này.',
           detailInformation,
+          isCombo: Boolean(product.is_combo),
+          isComboMultipleChoice: Boolean(product.is_combo_multiple_choice),
+          isDayTour: Boolean(product.is_day_tour),
+          combos: response?.combos || [],
           highlights: [],
           itinerary: [],
           includes: [],
@@ -254,7 +258,21 @@ const TourDetailPage = () => {
           <p className="text-sm text-[#424751]">Bạn sẽ được chuyển đến trang thanh toán để hoàn tất đặt tour.</p>
           <div className="flex gap-3">
             <Button variant="outline" fullWidth onClick={() => setShowBookingModal(false)}>Hủy</Button>
-            <Button variant="primary" fullWidth onClick={() => navigate('/booking')}>Tiếp Tục</Button>
+            <Button
+              variant="primary"
+              fullWidth
+              onClick={() => navigate('/booking', {
+                state: {
+                  productId: tour.id,
+                  productName: tour.name,
+                  isCombo: tour.isCombo,
+                  isComboMultipleChoice: tour.isComboMultipleChoice,
+                  isDayTour: tour.isDayTour,
+                },
+              })}
+            >
+              Tiếp Tục
+            </Button>
           </div>
         </div>
       </Modal>
