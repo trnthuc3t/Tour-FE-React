@@ -14,6 +14,7 @@ const BookingPage = () => {
   const [product, setProduct] = useState(null);
   const [combos, setCombos] = useState([]);
   const [comboQuantities, setComboQuantities] = useState({});
+  const [comboSelections, setComboSelections] = useState({});
   const [expandedComboItems, setExpandedComboItems] = useState([]);
   const [orderResult, setOrderResult] = useState(null);
   const [submitError, setSubmitError] = useState('');
@@ -38,10 +39,16 @@ const BookingPage = () => {
         setCombos(fetchedCombos);
 
         const defaultComboQuantities = {};
+        const defaultComboSelections = {};
         fetchedCombos.forEach((combo) => {
-          defaultComboQuantities[combo.id] = 1;
+          if (combo.is_car_service) {
+            defaultComboSelections[combo.id] = null;
+          } else {
+            defaultComboQuantities[combo.id] = 1;
+          }
         });
         setComboQuantities(defaultComboQuantities);
+        setComboSelections(defaultComboSelections);
       } catch (error) {
         console.error('Failed to fetch booking product:', error);
       } finally {
@@ -55,6 +62,56 @@ const BookingPage = () => {
   const isComboProduct = Boolean(product?.is_combo);
   const isDayTour = Boolean(product?.is_day_tour);
   const isComboQuantityFlow = isComboProduct && !isDayTour && combos.length > 0;
+  const carServiceCombos = useMemo(
+    () => combos.filter((combo) => Boolean(combo.is_car_service)),
+    [combos]
+  );
+  const standardCombos = useMemo(
+    () => combos.filter((combo) => !combo.is_car_service),
+    [combos]
+  );
+  const totalStandardComboQuantity = useMemo(
+    () => standardCombos.reduce((sum, combo) => sum + Math.max(0, Number(comboQuantities[combo.id] || 0)), 0),
+    [standardCombos, comboQuantities]
+  );
+
+  const isCarServiceItemSelectable = (item) => {
+    const minQty = Number(item?.min_quantity ?? 0);
+    const maxQty = Number(item?.max_quantity ?? 0);
+    if (!Number.isFinite(minQty) || !Number.isFinite(maxQty)) {
+      return false;
+    }
+    if (maxQty <= 0) {
+      return totalStandardComboQuantity >= minQty;
+    }
+    return totalStandardComboQuantity >= minQty && totalStandardComboQuantity <= maxQty;
+  };
+
+  useEffect(() => {
+    if (!carServiceCombos.length) {
+      return;
+    }
+    setComboSelections((prev) => {
+      let changed = false;
+      const next = { ...prev };
+
+      carServiceCombos.forEach((combo) => {
+        const selectedId = Number(next[combo.id] || 0);
+        if (!selectedId) {
+          return;
+        }
+        const selectedItem = (combo.items || []).find(
+          (item) => Number(item.combo_item_id || item.id) === selectedId
+        );
+        if (!selectedItem || !isCarServiceItemSelectable(selectedItem)) {
+          next[combo.id] = null;
+          changed = true;
+        }
+      });
+
+      return changed ? next : prev;
+    });
+  }, [carServiceCombos, totalStandardComboQuantity]);
 
   const stepsWithDynamicLabel = useMemo(
     () => [
@@ -111,6 +168,7 @@ const BookingPage = () => {
 
       if (isComboQuantityFlow) {
         payload.combo_quantities = comboQuantities;
+        payload.combo_selections = comboSelections;
       }
 
       const response = await productService.createOrder(payload);
@@ -134,18 +192,49 @@ const BookingPage = () => {
     handleComboQuantityChange(comboId, currentQty + delta);
   };
 
+  const handleCarServiceSelection = (comboId, comboItemId) => {
+    setComboSelections((prev) => ({ ...prev, [comboId]: comboItemId }));
+  };
+
   const handleNextStep = async () => {
     if (currentStep === 1 && isComboQuantityFlow) {
-      const hasAnyComboQuantity = Object.values(comboQuantities).some((qty) => Number(qty) > 0);
-      if (!hasAnyComboQuantity) {
-        setSubmitError('Vui long chon so luong lon hon 0 cho it nhat 1 combo.');
+      const hasAnyStandardComboQuantity = standardCombos.length === 0
+        ? true
+        : standardCombos.some((combo) => Number(comboQuantities[combo.id] || 0) > 0);
+      const hasAllCarServiceSelections = carServiceCombos.every(
+        (combo) => Number(comboSelections[combo.id] || 0) > 0
+      );
+
+      const hasInvalidCarServiceSelection = carServiceCombos.some((combo) => {
+        const selectedId = Number(comboSelections[combo.id] || 0);
+        if (!selectedId) {
+          return false;
+        }
+        const selectedItem = (combo.items || []).find(
+          (item) => Number(item.combo_item_id || item.id) === selectedId
+        );
+        return !selectedItem || !isCarServiceItemSelectable(selectedItem);
+      });
+
+      if (!hasAnyStandardComboQuantity) {
+        setSubmitError('Vui long chon so luong lon hon 0 cho it nhat 1 combo thuong.');
+        return;
+      }
+
+      if (!hasAllCarServiceSelections) {
+        setSubmitError('Vui long chon san pham cho tat ca combo Car Service.');
+        return;
+      }
+
+      if (hasInvalidCarServiceSelection) {
+        setSubmitError('Lua chon Car Service khong nam trong khoang min/max hop le theo tong so luong combo.');
         return;
       }
 
       setPreparingCombo(true);
       setSubmitError('');
       try {
-        const response = await productService.prepareComboItems(tour.id, comboQuantities);
+        const response = await productService.prepareComboItems(tour.id, comboQuantities, comboSelections);
         setExpandedComboItems(response?.expanded_items || []);
       } catch (error) {
         console.error('Failed to prepare combo items:', error);
@@ -226,7 +315,7 @@ const BookingPage = () => {
               <div className="bg-white rounded-2xl p-6 md:p-8 editorial-shadow">
                 <h2 className="text-xl font-bold text-[#191c1e] mb-2">Chọn Số Lượng Theo Combo</h2>
                 <p className="text-sm text-[#424751] mb-6">
-                  Sản phẩm này là combo. Bạn chỉ cần nhập số lượng cho từng combo, hệ thống sẽ tự động lấy toàn bộ sản phẩm nằm trong combo đó.
+                  Combo thuong: nhap so luong nhu cu. Combo Car Service: chon san pham trong combo, khong can nhap so luong.
                 </p>
 
                 <div className="space-y-4">
@@ -234,49 +323,91 @@ const BookingPage = () => {
                     <div key={combo.id} className="rounded-xl border border-[#e0e3e5] p-4">
                       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-3">
                         <h3 className="font-semibold text-[#191c1e]">{combo.name}</h3>
-                        <div className="w-full md:w-[124px]">
-                          <p className="mb-1.5 text-xs font-medium text-[#424751]">Số lượng</p>
-                          <div className="flex items-center rounded-lg border border-[#e0e3e5] bg-[#f7f9fb] p-1 shadow-sm">
-                            <button
-                              type="button"
-                              onClick={() => handleComboQuantityStep(combo.id, -1)}
-                              className="flex h-7 w-7 items-center justify-center rounded-md bg-white text-lg font-medium leading-none text-[#191c1e] transition-colors hover:bg-[#f2f4f6] disabled:cursor-not-allowed disabled:text-[#c2c6d3]"
-                              disabled={(comboQuantities[combo.id] ?? 0) <= 0}
-                              aria-label={`Giảm số lượng ${combo.name}`}
-                            >
-                              -
-                            </button>
-                            <input
-                              type="number"
-                              min="0"
-                              inputMode="numeric"
-                              value={comboQuantities[combo.id] ?? 0}
-                              onChange={(e) => handleComboQuantityChange(combo.id, e.target.value)}
-                              className="h-7 w-8 flex-1 bg-transparent px-1 text-center text-sm font-semibold text-[#191c1e] outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
-                              aria-label={`Nhập số lượng ${combo.name}`}
-                            />
-                            <button
-                              type="button"
-                              onClick={() => handleComboQuantityStep(combo.id, 1)}
-                              className="flex h-7 w-7 items-center justify-center rounded-md bg-white text-lg font-medium leading-none text-[#191c1e] transition-colors hover:bg-[#f2f4f6]"
-                              aria-label={`Tăng số lượng ${combo.name}`}
-                            >
-                              +
-                            </button>
+                        {combo.is_car_service ? (
+                          <span className="inline-flex items-center rounded-full bg-[#d6e3ff] px-2.5 py-1 text-xs font-semibold text-[#003974]">
+                            Car Service
+                          </span>
+                        ) : (
+                          <div className="w-full md:w-[124px]">
+                            <p className="mb-1.5 text-xs font-medium text-[#424751]">Số lượng</p>
+                            <div className="flex items-center rounded-lg border border-[#e0e3e5] bg-[#f7f9fb] p-1 shadow-sm">
+                              <button
+                                type="button"
+                                onClick={() => handleComboQuantityStep(combo.id, -1)}
+                                className="flex h-7 w-7 items-center justify-center rounded-md bg-white text-lg font-medium leading-none text-[#191c1e] transition-colors hover:bg-[#f2f4f6] disabled:cursor-not-allowed disabled:text-[#c2c6d3]"
+                                disabled={(comboQuantities[combo.id] ?? 0) <= 0}
+                                aria-label={`Giảm số lượng ${combo.name}`}
+                              >
+                                -
+                              </button>
+                              <input
+                                type="number"
+                                min="0"
+                                inputMode="numeric"
+                                value={comboQuantities[combo.id] ?? 0}
+                                onChange={(e) => handleComboQuantityChange(combo.id, e.target.value)}
+                                className="h-7 w-8 flex-1 bg-transparent px-1 text-center text-sm font-semibold text-[#191c1e] outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                                aria-label={`Nhập số lượng ${combo.name}`}
+                              />
+                              <button
+                                type="button"
+                                onClick={() => handleComboQuantityStep(combo.id, 1)}
+                                className="flex h-7 w-7 items-center justify-center rounded-md bg-white text-lg font-medium leading-none text-[#191c1e] transition-colors hover:bg-[#f2f4f6]"
+                                aria-label={`Tăng số lượng ${combo.name}`}
+                              >
+                                +
+                              </button>
+                            </div>
                           </div>
-                        </div>
+                        )}
                       </div>
 
                       <div className="bg-[#f7f9fb] rounded-lg p-3">
-                        <p className="text-xs font-semibold text-[#424751] mb-2">Sản phẩm sẽ tự thêm:</p>
-                        <ul className="space-y-1">
-                          {(combo.items || []).map((item) => (
-                            <li key={item.id} className="text-sm text-[#191c1e] flex items-center justify-between">
-                              <span>{item.product_name}</span>
-                              <span className="text-[#424751]">x {item.quantity || 1}</span>
-                            </li>
-                          ))}
-                        </ul>
+                        {combo.is_car_service ? (
+                          <>
+                            <p className="text-xs font-semibold text-[#424751] mb-2">Chọn 1 sản phẩm Car Service:</p>
+                            <div className="space-y-2">
+                              {(combo.items || []).map((item) => {
+                                const selected = Number(comboSelections[combo.id] || 0) === Number(item.combo_item_id || item.id);
+                                const itemId = item.combo_item_id || item.id;
+                                const canSelect = isCarServiceItemSelectable(item);
+                                return (
+                                  <label
+                                    key={item.id}
+                                    className={`flex items-center justify-between rounded-lg border px-3 py-2 text-sm transition-colors ${canSelect ? 'cursor-pointer' : 'cursor-not-allowed opacity-55'} ${selected ? 'border-[#003974] bg-[#d6e3ff]/25' : 'border-[#e0e3e5] bg-white'} ${canSelect ? 'hover:border-[#c2c6d3]' : ''}`}
+                                  >
+                                    <div className="flex items-center gap-2 text-[#191c1e]">
+                                      <input
+                                        type="radio"
+                                        name={`car-service-${combo.id}`}
+                                        checked={selected}
+                                        onChange={() => handleCarServiceSelection(combo.id, itemId)}
+                                        disabled={!canSelect}
+                                      />
+                                      <span>{item.product_name}</span>
+                                    </div>
+                                    <div className="text-right text-[#424751]">
+                                      <div>x {item.quantity || 1}</div>
+                                      <div className="text-[11px]">Min {item.min_quantity} - Max {item.max_quantity}</div>
+                                    </div>
+                                  </label>
+                                );
+                              })}
+                            </div>
+                          </>
+                        ) : (
+                          <>
+                            <p className="text-xs font-semibold text-[#424751] mb-2">Sản phẩm sẽ tự thêm:</p>
+                            <ul className="space-y-1">
+                              {(combo.items || []).map((item) => (
+                                <li key={item.id} className="text-sm text-[#191c1e] flex items-center justify-between">
+                                  <span>{item.product_name}</span>
+                                  <span className="text-[#424751]">x {item.quantity || 1}</span>
+                                </li>
+                              ))}
+                            </ul>
+                          </>
+                        )}
                       </div>
                     </div>
                   ))}

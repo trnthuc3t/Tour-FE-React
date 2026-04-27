@@ -53,10 +53,11 @@ export const productService = {
    * @param {number} productId
    * @param {Object} comboQuantities - { [comboId]: quantity }
    */
-  prepareComboItems: async (productId, comboQuantities = {}) => {
+  prepareComboItems: async (productId, comboQuantities = {}, comboSelections = {}) => {
     try {
       const response = await apiClient.post(`/api/products/${productId}/combo-items`, {
         combo_quantities: comboQuantities,
+        combo_selections: comboSelections,
       });
       const result = response.data;
 
