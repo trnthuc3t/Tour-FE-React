@@ -52,6 +52,17 @@ export default defineConfig({
         secure: false,
         cookieDomainRewrite: 'localhost',
       },
+      '/im_livechat': {
+        target: 'http://localhost:8070',
+        changeOrigin: true,
+        secure: false,
+        cookieDomainRewrite: 'localhost',
+      },
+      '/web/static': {
+        target: 'http://localhost:8070',
+        changeOrigin: true,
+        secure: false,
+      },
     },
   },
 });
