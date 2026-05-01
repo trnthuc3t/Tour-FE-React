@@ -10,6 +10,16 @@ export const livechatService = {
     const response = await apiClient.post('/api/livechat/identity/clear');
     return response.data;
   },
+
+  resetSession: async () => {
+    const response = await apiClient.post('/api/livechat/session/reset');
+    return response.data;
+  },
+
+    restoreSession: async () => {
+      const response = await apiClient.post('/api/livechat/session/restore');
+      return response.data;
+    },
 };
 
 export default livechatService;

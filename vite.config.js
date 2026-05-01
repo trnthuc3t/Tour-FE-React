@@ -58,6 +58,30 @@ export default defineConfig({
         secure: false,
         cookieDomainRewrite: 'localhost',
       },
+      '/bus': {
+        target: 'http://localhost:8070',
+        changeOrigin: true,
+        secure: false,
+        cookieDomainRewrite: 'localhost',
+      },
+      '/websocket': {
+        target: 'http://localhost:8070',
+        ws: true,
+        changeOrigin: true,
+        secure: false,
+      },
+      '/mail': {
+        target: 'http://localhost:8070',
+        changeOrigin: true,
+        secure: false,
+        cookieDomainRewrite: 'localhost',
+      },
+      '/discuss': {
+        target: 'http://localhost:8070',
+        changeOrigin: true,
+        secure: false,
+        cookieDomainRewrite: 'localhost',
+      },
       '/web/static': {
         target: 'http://localhost:8070',
         changeOrigin: true,
