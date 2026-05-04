@@ -66,6 +66,9 @@ const Navbar = () => {
                       <p className="font-semibold text-[#191c1e]">{user?.name}</p>
                       <p className="text-xs text-[#424751]">{user?.email}</p>
                     </div>
+                    <button onClick={() => navigate('/orders/history')} className="w-full px-4 py-2 text-left text-sm text-[#424751] hover:bg-[#f2f4f6] transition-colors">
+                      Lich Su Mua Hang
+                    </button>
                     <button onClick={handleLogout} className="w-full px-4 py-2 text-left text-sm text-[#ba1a1a] hover:bg-[#f2f4f6] transition-colors">
                       Đăng Xuất
                     </button>
@@ -97,6 +100,11 @@ const Navbar = () => {
                 {link.name}
               </Link>
             ))}
+            {isAuthenticated && (
+              <Link to="/orders/history" className="block px-4 py-3 text-[#424751] hover:bg-[#f2f4f6]" onClick={() => setMenuOpen(false)}>
+                Lich Su Mua Hang
+              </Link>
+            )}
             {!isAuthenticated && (
               <>
                 <Link to="/login" className="block px-4 py-3 text-[#424751] hover:bg-[#f2f4f6]" onClick={() => setMenuOpen(false)}>Đăng Nhập</Link>
