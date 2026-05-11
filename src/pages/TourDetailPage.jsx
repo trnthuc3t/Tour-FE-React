@@ -5,8 +5,6 @@ import { productService } from '../services/productService';
 import { formatPrice, generateStarRating } from '../utils';
 import { useAuthContext } from '../context/AuthContext';
 
-const ODOO_BASE_URL = (import.meta.env.VITE_ODOO_URL || '').replace(/\/$/, '');
-
 const stripHtml = (html = '') =>
   html
     .replace(/<[^>]+>/g, ' ')
@@ -18,11 +16,7 @@ const toAbsoluteAssetUrl = (value = '') => {
     return value;
   }
 
-  if (!ODOO_BASE_URL) {
-    return value;
-  }
-
-  return value.startsWith('/') ? `${ODOO_BASE_URL}${value}` : `${ODOO_BASE_URL}/${value}`;
+  return value.startsWith('/') ? value : `/${value}`;
 };
 
 const normalizeSrcSet = (srcset = '') =>
@@ -74,6 +68,30 @@ const normalizeDetailInformation = (html = '') => {
   return doc.body.innerHTML;
 };
 
+const buildGoogleMapsEmbedUrl = (mapUrl = '', address = '') => {
+  const fallbackQuery = address || mapUrl;
+  if (!fallbackQuery) {
+    return '';
+  }
+
+  const normalizedMapUrl = mapUrl.trim();
+  if (normalizedMapUrl.includes('/maps/embed')) {
+    return normalizedMapUrl;
+  }
+
+  if (normalizedMapUrl.includes('google.com/maps')) {
+    try {
+      const parsed = new URL(normalizedMapUrl);
+      const query = parsed.searchParams.get('q') || parsed.searchParams.get('query') || fallbackQuery;
+      return `https://www.google.com/maps?q=${encodeURIComponent(query)}&output=embed`;
+    } catch {
+      return `https://www.google.com/maps?q=${encodeURIComponent(fallbackQuery)}&output=embed`;
+    }
+  }
+
+  return `https://www.google.com/maps?q=${encodeURIComponent(fallbackQuery)}&output=embed`;
+};
+
 const TourDetailPage = () => {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -82,6 +100,7 @@ const TourDetailPage = () => {
   const [loading, setLoading] = useState(true);
   const [activeDay, setActiveDay] = useState(1);
   const [showBookingModal, setShowBookingModal] = useState(false);
+  const [showMapModal, setShowMapModal] = useState(false);
 
   useEffect(() => {
     const fetchTour = async () => {
@@ -95,14 +114,18 @@ const TourDetailPage = () => {
         const mappedTour = {
           id: product.id,
           name: product.name || 'Sản phẩm du lịch',
-          destination: 'Việt Nam',
-          duration: '3 Ngày 2 Đêm',
+          destination: product.tour_location_address || 'Việt Nam',
+          duration: product.tour_duration || '3 Ngày 2 Đêm',
           rating: 4.5,
           reviewCount: 0,
           price: product.list_price || 0,
           badge: '',
           image: product.image_url || '',
-          description: product.description || detailText || 'Chưa có mô tả cho sản phẩm này.',
+          quotationDescription: product.description || '',
+          description: detailText || '',
+          locationAddress: product.tour_location_address || '',
+          locationMapUrl: product.tour_location_map_url || '',
+
           detailInformation,
           isCombo: Boolean(product.is_combo),
           isComboMultipleChoice: Boolean(product.is_combo_multiple_choice),
@@ -159,16 +182,31 @@ const TourDetailPage = () => {
           <div className="container-main">
             <p className="label-caps text-[#a4c5ff] mb-2">{tour.destination}</p>
             <h1 className="text-3xl md:text-5xl font-bold mb-2">{tour.name}</h1>
-            <p className="text-xl mb-4 text-white/80">{tour.description}</p>
-            <div className="flex flex-wrap items-center gap-4 text-sm">
-              <span className="flex items-center gap-1"><span className="material-symbols-outlined">schedule</span>{tour.duration}</span>
-              <span className="flex items-center gap-1"><span className="material-symbols-outlined">location_on</span>{tour.destination}</span>
-              <span className="flex items-center gap-1">
-                {generateStarRating(tour.rating).map((star, idx) => (
-                  <span key={idx} className="material-symbols-outlined text-[#fe9400] text-sm">{star === 'full' ? 'star' : star === 'half' ? 'star_half' : 'star_border'}</span>
-                ))}
-                {tour.rating} ({tour.reviewCount} nhận xét)
-              </span>
+            {tour.quotationDescription && (
+              <p className="text-xl mb-4 text-white/80">{tour.quotationDescription}</p>
+            )}
+            <div className="space-y-2 text-sm">
+              <div className="flex flex-wrap items-center gap-3">
+                <span className="flex items-center gap-1"><span className="material-symbols-outlined">schedule</span>{tour.duration}</span>
+                <span className="flex items-center gap-1">
+                  {generateStarRating(tour.rating).map((star, idx) => (
+                    <span key={idx} className="material-symbols-outlined text-[#fe9400] text-sm">{star === 'full' ? 'star' : star === 'half' ? 'star_half' : 'star_border'}</span>
+                  ))}
+                  {tour.rating} ({tour.reviewCount} nhận xét)
+                </span>
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="flex items-center gap-1"><span className="material-symbols-outlined">location_on</span>{tour.destination}</span>
+                {tour.locationMapUrl && (
+                  <button
+                    type="button"
+                    onClick={() => setShowMapModal(true)}
+                    className="text-sm font-semibold text-[#003974] hover:underline"
+                  >
+                    xem chi tiết
+                  </button>
+                )}
+              </div>
             </div>
           </div>
         </div>
@@ -178,20 +216,6 @@ const TourDetailPage = () => {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-12">
           {/* Main Content */}
           <div className="lg:col-span-2 space-y-12">
-            {/* Overview */}
-            <section className="bg-white rounded-2xl p-6 md:p-8 editorial-shadow">
-              <h2 className="text-2xl font-bold text-[#191c1e] mb-6">Tổng Quan Chuyến Đi</h2>
-              <p className="text-[#424751] leading-relaxed mb-6">{tour.description}</p>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                {tour.highlights?.map((highlight, idx) => (
-                  <div key={idx} className="flex items-center gap-2 p-3 bg-[#f2f4f6] rounded-xl">
-                    <span className="material-symbols-outlined text-[#003974]">check_circle</span>
-                    <span className="text-sm font-medium">{highlight}</span>
-                  </div>
-                ))}
-              </div>
-            </section>
-
             {/* Detail Information */}
             <section className="bg-white rounded-2xl p-6 md:p-8 editorial-shadow">
               <h2 className="text-2xl font-bold text-[#191c1e] mb-6">Thông Tin Chi Tiết</h2>
@@ -205,10 +229,7 @@ const TourDetailPage = () => {
               )}
             </section>
 
-            <section className="bg-white rounded-2xl p-6 md:p-8 editorial-shadow">
-              <h2 className="text-2xl font-bold text-[#191c1e] mb-3">Thông Tin Sản Phẩm</h2>
-              <p className="text-[#424751]">Mã sản phẩm: <span className="font-semibold">#{tour.id}</span></p>
-            </section>
+
           </div>
 
           {/* Booking Sidebar */}
@@ -273,6 +294,38 @@ const TourDetailPage = () => {
             >
               Tiếp Tục
             </Button>
+          </div>
+        </div>
+      </Modal>
+
+      <Modal isOpen={showMapModal} onClose={() => setShowMapModal(false)} title="Bản đồ địa chỉ" size="xl">
+        <div className="space-y-4">
+          {tour.locationAddress && (
+            <p className="text-sm text-[#424751]">
+              Địa chỉ: <span className="font-semibold text-[#191c1e]">{tour.locationAddress}</span>
+            </p>
+          )}
+          <div className="overflow-hidden rounded-2xl border border-[#e0e3e5]">
+            <iframe
+              title="Google Maps"
+              src={buildGoogleMapsEmbedUrl(tour.locationMapUrl, tour.locationAddress)}
+              className="h-[420px] w-full"
+              loading="lazy"
+              referrerPolicy="no-referrer-when-downgrade"
+              allowFullScreen
+            />
+          </div>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <p className="text-xs text-[#6b7280]">Bạn có thể zoom bằng Ctrl + cuộn chuột hoặc các nút +/- trên bản đồ.</p>
+            <a
+              href={tour.locationMapUrl || `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(tour.locationAddress || '')}`}
+              target="_blank"
+              rel="noreferrer noopener"
+              className="inline-flex items-center gap-1 rounded-lg bg-[#003974] px-4 py-2 text-sm font-semibold text-white hover:bg-[#002f5f]"
+            >
+              Mở Google Maps
+              <span className="material-symbols-outlined text-base">open_in_new</span>
+            </a>
           </div>
         </div>
       </Modal>

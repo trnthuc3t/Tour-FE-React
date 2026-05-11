@@ -1,6 +1,6 @@
 import { createBrowserRouter } from 'react-router-dom';
 import { MainLayout, AuthLayout } from '../layouts';
-import { HomePage, LoginPage, RegisterPage, TourListPage, TourDetailPage, BookingPage, OrderHistoryPage } from '../pages';
+import { HomePage, LoginPage, RegisterPage, TourListPage, TourDetailPage, BookingPage, OrderHistoryPage, ChatbotPage } from '../pages';
 
 const routes = [
   {
@@ -11,6 +11,7 @@ const routes = [
       { path: '/tour/:id', element: <TourDetailPage /> },
       { path: '/booking', element: <BookingPage /> },
       { path: '/orders/history', element: <OrderHistoryPage /> },
+      { path: '/chatbot', element: <ChatbotPage /> },
     ],
   },
   {

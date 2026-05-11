@@ -6,6 +6,57 @@
 
 import apiClient from './apiClient';
 
+const normalizeOdooAssetUrl = (value = '') => {
+  if (!value || /^(https?:|data:|blob:|mailto:|tel:|#)/i.test(value)) {
+    return value;
+  }
+
+  return value.startsWith('/') ? value : `/${value}`;
+};
+
+const getFirstImageFromDetailInformation = (html = '') => {
+  if (!html || typeof html !== 'string') {
+    return '';
+  }
+
+  const match = html.match(/<img[^>]+src=["']([^"']+)["']/i);
+  return match?.[1] || '';
+};
+
+const getProductImageUrl = (product = {}) => {
+  // Priority: image_url from API = field image_1920 on Odoo product (Label Image)
+  const rawImage = (product.image_url || '').trim();
+  if (rawImage) {
+    return normalizeOdooAssetUrl(rawImage);
+  }
+
+  return '';
+};
+
+const normalizeProduct = (product = {}) => ({
+  ...product,
+  image_url: getProductImageUrl(product),
+});
+
+const isComboMultipleChoiceProduct = (product = {}) => {
+  const value = product?.is_combo_multiple_choice;
+
+  if (typeof value === 'boolean') {
+    return value;
+  }
+
+  if (typeof value === 'number') {
+    return value === 1;
+  }
+
+  if (typeof value === 'string') {
+    const normalizedValue = value.trim().toLowerCase();
+    return normalizedValue === '1' || normalizedValue === 'true' || normalizedValue === 'yes';
+  }
+
+  return false;
+};
+
 export const productService = {
 
   /**
@@ -18,7 +69,15 @@ export const productService = {
       const result = response.data;
 
       if (result.code === 200) {
-        return result.response;  // { products, total, limit, offset }
+        const payload = result.response || {};
+        const products = (payload.products || [])
+          .filter(isComboMultipleChoiceProduct)
+          .map(normalizeProduct);
+        return {
+          ...payload,
+          products,
+          total: products.length,
+        };
       }
 
       throw new Error(result.message || 'Khong the lay danh sach san pham');
@@ -38,7 +97,11 @@ export const productService = {
       const result = response.data;
 
       if (result.code === 200) {
-        return result.response;  // { product, combos }
+        const payload = result.response || {};
+        return {
+          ...payload,
+          product: normalizeProduct(payload.product || {}),
+        };
       }
 
       throw new Error(result.message || 'San pham khong ton tai');
