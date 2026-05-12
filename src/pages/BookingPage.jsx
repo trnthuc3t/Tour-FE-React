@@ -1,12 +1,57 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate, Link } from 'react-router-dom';
 import { Button, Input, LoadingSpinner } from '../components';
 import { formatPrice } from '../utils';
 import { productService } from '../services/productService';
 
+const formatLocalDateString = (date) => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
+const addDays = (date, days) => {
+  const nextDate = new Date(date);
+  nextDate.setDate(nextDate.getDate() + days);
+  return nextDate;
+};
+
+const buildDepartureDates = (count = 10) => {
+  const dates = [];
+  const firstDate = addDays(new Date(), 1);
+
+  for (let index = 0; index < count; index += 1) {
+    const currentDate = addDays(firstDate, index);
+    dates.push({
+      value: formatLocalDateString(currentDate),
+      weekday: new Intl.DateTimeFormat('vi-VN', { weekday: 'short' }).format(currentDate),
+      label: new Intl.DateTimeFormat('vi-VN', { day: 'numeric', month: 'short' }).format(currentDate),
+    });
+  }
+
+  return dates;
+};
+
+const formatDisplayDate = (value) => {
+  if (!value) {
+    return '';
+  }
+
+  const date = new Date(`${value}T12:00:00`);
+  return new Intl.DateTimeFormat('vi-VN', {
+    weekday: 'long',
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+  }).format(date);
+};
+
 const BookingPage = () => {
   const location = useLocation();
   const navigate = useNavigate();
+  const datesScrollRef = useRef(null);
+  const hiddenDateInputRef = useRef(null);
   const [currentStep, setCurrentStep] = useState(1);
   const [loading, setLoading] = useState(false);
   const [loadingProduct, setLoadingProduct] = useState(true);
@@ -18,6 +63,7 @@ const BookingPage = () => {
   const [expandedComboItems, setExpandedComboItems] = useState([]);
   const [orderResult, setOrderResult] = useState(null);
   const [submitError, setSubmitError] = useState('');
+  const [selectedDepartureDate, setSelectedDepartureDate] = useState(() => formatLocalDateString(addDays(new Date(), 1)));
   const [bookingData, setBookingData] = useState({ fullName: '', email: '', phone: '', specialRequests: '', paymentMethod: 'credit_card' });
 
   const productId = location.state?.productId;
@@ -74,6 +120,8 @@ const BookingPage = () => {
     () => standardCombos.reduce((sum, combo) => sum + Math.max(0, Number(comboQuantities[combo.id] || 0)), 0),
     [standardCombos, comboQuantities]
   );
+
+  const departureDates = useMemo(() => buildDepartureDates(10), []);
 
   const isCarServiceItemSelectable = (item) => {
     const minQty = Number(item?.min_quantity ?? 0);
@@ -147,6 +195,20 @@ const BookingPage = () => {
     setBookingData((prev) => ({ ...prev, [name]: value }));
   };
 
+  const handleOpenCalendar = () => {
+    const input = hiddenDateInputRef.current;
+    if (!input) {
+      return;
+    }
+
+    if (typeof input.showPicker === 'function') {
+      input.showPicker();
+      return;
+    }
+
+    input.click();
+  };
+
   const handleSubmit = async () => {
     if (!Number(tour.id)) {
       setSubmitError('Khong tim thay san pham dat tour. Vui long quay lai trang chi tiet san pham.');
@@ -164,6 +226,7 @@ const BookingPage = () => {
         phone: bookingData.phone,
         special_requests: bookingData.specialRequests,
         payment_method: bookingData.paymentMethod,
+        commitment_date: selectedDepartureDate,
       };
 
       if (isComboQuantityFlow) {
@@ -262,6 +325,16 @@ const BookingPage = () => {
 
   return (
     <div className="min-h-screen bg-[#f7f9fb] py-8">
+      <input
+        ref={hiddenDateInputRef}
+        type="date"
+        value={selectedDepartureDate}
+        min={formatLocalDateString(addDays(new Date(), 1))}
+        onChange={(e) => setSelectedDepartureDate(e.target.value)}
+        className="sr-only"
+        tabIndex={-1}
+        aria-hidden="true"
+      />
       <div className="container-main">
         <div className="mb-8">
           <Link to="/tours" className="flex items-center gap-2 text-[#424751] hover:text-[#003974] mb-4">
@@ -291,6 +364,64 @@ const BookingPage = () => {
             {submitError && (
               <div className="mb-4 rounded-xl border border-[#ba1a1a]/30 bg-[#ffdad6] px-4 py-3 text-sm text-[#93000a]">
                 {submitError}
+              </div>
+            )}
+
+            {currentStep === 1 && (
+              <div className="bg-white rounded-2xl p-4 md:p-5 editorial-shadow mb-6">
+                <div className="flex flex-col gap-4">
+                  <div className="flex items-center gap-3">
+                    <button
+                      type="button"
+                      onClick={handleOpenCalendar}
+                      className="inline-flex items-center gap-2 rounded-2xl border border-[#d6e3ff] bg-[#eef4ff] px-4 py-3 font-semibold text-[#003974] transition-colors hover:bg-[#e2ecff]"
+                    >
+                      <span className="material-symbols-outlined text-[22px]">calendar_month</span>
+                      Xem lịch
+                    </button>
+                    <div className="hidden md:block text-sm text-[#424751]">
+                      Chọn ngày khởi hành cho chuyến đi
+                    </div>
+                  </div>
+
+                  <div className="relative">
+                    <div
+                      ref={datesScrollRef}
+                      className="flex items-stretch gap-3 overflow-x-auto pb-2 pr-12 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+                    >
+                      {departureDates.map((dateOption) => {
+                        const isSelected = selectedDepartureDate === dateOption.value;
+
+                        return (
+                          <button
+                            key={dateOption.value}
+                            type="button"
+                            onClick={() => setSelectedDepartureDate(dateOption.value)}
+                            className={`min-w-[88px] rounded-xl border px-3 py-3 text-center transition-all ${isSelected ? 'border-[#2696ff] bg-[#d6e3ff] text-[#003974] shadow-sm' : 'border-[#d0d7de] bg-white text-[#191c1e] hover:border-[#9fb7d3] hover:bg-[#f7f9fb]'}`}
+                          >
+                            <div className="text-sm font-semibold">{dateOption.weekday}</div>
+                            <div className="mt-1 text-base font-bold leading-tight">{dateOption.label}</div>
+                          </button>
+                        );
+                      })}
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        datesScrollRef.current?.scrollBy({ left: 420, behavior: 'smooth' });
+                      }}
+                      className="absolute right-0 top-1/2 -translate-y-1/2 hidden h-11 w-11 items-center justify-center rounded-full border border-[#d0d7de] bg-white text-[#191c1e] shadow-sm transition-colors hover:bg-[#f7f9fb] md:flex"
+                      aria-label="Cuộn sang ngày tiếp theo"
+                    >
+                      <span className="material-symbols-outlined">chevron_right</span>
+                    </button>
+                  </div>
+
+                  <p className="text-xs text-[#424751]">
+                    Ngày đã chọn: <span className="font-semibold text-[#003974]">{formatDisplayDate(selectedDepartureDate)}</span>
+                  </p>
+                </div>
               </div>
             )}
 
@@ -506,6 +637,7 @@ const BookingPage = () => {
                 <div className="space-y-2 text-sm text-[#424751]">
                   <div className="flex items-center gap-2"><span className="material-symbols-outlined text-base">schedule</span>{tour.duration}</div>
                   <div className="flex items-center gap-2"><span className="material-symbols-outlined text-base">location_on</span>{tour.destination}</div>
+                  <div className="flex items-center gap-2"><span className="material-symbols-outlined text-base">calendar_month</span>{formatDisplayDate(selectedDepartureDate)}</div>
                   <div className="flex items-center gap-2"><span className="material-symbols-outlined text-base">group</span>{tour.guests} khách</div>
                 </div>
               </div>

@@ -48,15 +48,8 @@ const Navbar = () => {
 
           {/* Right Actions */}
           <div className="flex items-center gap-3">
-            <button className="hidden md:flex p-2 text-[#424751] hover:text-[#003974] transition-colors">
-              <span className="material-symbols-outlined">search</span>
-            </button>
-
             {isAuthenticated ? (
               <div className="flex items-center gap-2">
-                <button onClick={() => navigate('/booking')} className="hidden md:flex px-4 py-2 text-sm font-semibold text-white rounded-full btn-gradient">
-                  Đặt Ngay
-                </button>
                 <div className="relative group">
                   <button className="w-10 h-10 rounded-full bg-[#003974] text-white flex items-center justify-center">
                     <span className="material-symbols-outlined text-xl">person</span>
