@@ -12,6 +12,7 @@ const routes = [
       { path: '/booking', element: <BookingPage /> },
       { path: '/orders/history', element: <OrderHistoryPage /> },
       { path: '/chatbot', element: <ChatbotPage /> },
+      // { path: '/livechat-realtime', element: <RealtimeChatPage /> },
     ],
   },
   {

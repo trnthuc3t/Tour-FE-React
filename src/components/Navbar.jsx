@@ -58,9 +58,11 @@ const Navbar = () => {
                     <div className="px-4 py-2 border-b border-[#e0e3e5]">
                       <p className="font-semibold text-[#191c1e]">{user?.name}</p>
                       <p className="text-xs text-[#424751]">{user?.email}</p>
-                    </div>                  <button onClick={() => navigate('/chatbot')} className="w-full px-4 py-2 text-left text-sm text-[#424751] hover:bg-[#f2f4f6] transition-colors">
-                    🤖 Chat Bot
-                  </button>                    <button onClick={() => navigate('/orders/history')} className="w-full px-4 py-2 text-left text-sm text-[#424751] hover:bg-[#f2f4f6] transition-colors">
+                    </div>
+                    <button onClick={() => navigate('/chatbot')} className="w-full px-4 py-2 text-left text-sm text-[#424751] hover:bg-[#f2f4f6] transition-colors">
+                      🤖 Chat Bot
+                    </button>
+                    <button onClick={() => navigate('/orders/history')} className="w-full px-4 py-2 text-left text-sm text-[#424751] hover:bg-[#f2f4f6] transition-colors">
                       Lich Su Mua Hang
                     </button>
                     <button onClick={handleLogout} className="w-full px-4 py-2 text-left text-sm text-[#ba1a1a] hover:bg-[#f2f4f6] transition-colors">
