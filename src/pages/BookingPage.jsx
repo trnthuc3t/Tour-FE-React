@@ -3,6 +3,7 @@ import { useLocation, useNavigate, Link } from 'react-router-dom';
 import { Button, Input, LoadingSpinner } from '../components';
 import { formatPrice } from '../utils';
 import { productService } from '../services/productService';
+import { paymentService } from '../services/paymentService';
 
 const formatLocalDateString = (date) => {
   const year = date.getFullYear();
@@ -232,6 +233,24 @@ const BookingPage = () => {
       if (isComboQuantityFlow) {
         payload.combo_quantities = comboQuantities;
         payload.combo_selections = comboSelections;
+      }
+
+      if (bookingData.paymentMethod === 'payos') {
+        const origin = window.location.origin;
+        const paymentResponse = await paymentService.createPayosPayment({
+          booking_payload: payload,
+          return_url: `${origin}/payment/payos/return`,
+          cancel_url: `${origin}/booking`,
+          notify_url: `${origin}/api/payments/payos/webhook`,
+        });
+
+        const payUrl = paymentResponse?.pay_url || paymentResponse?.payUrl || '';
+        if (!payUrl) {
+          throw new Error('Khong nhan duoc link thanh toan PayOS');
+        }
+
+        window.location.href = payUrl;
+        return;
       }
 
       const response = await productService.createOrder(payload);
@@ -566,7 +585,7 @@ const BookingPage = () => {
                   {[
                     { id: 'credit_card', icon: 'credit_card', label: 'Thẻ Tín Dụng/Ghi Nợ', desc: 'Visa, Mastercard, JCB' },
                     { id: 'bank_transfer', icon: 'account_balance', label: 'Chuyển Khoản Ngân Hàng', desc: 'Thanh toán qua ATM hoặc internet banking' },
-                    { id: 'momo', icon: 'verified_user', label: 'Ví MoMo', desc: 'Thanh toán qua ứng dụng MoMo' },
+                    { id: 'payos', icon: 'verified_user', label: 'PayOS', desc: 'Thanh toán qua cổng PayOS' },
                   ].map((method) => (
                     <label key={method.id} className={`flex items-center gap-4 p-4 rounded-xl border-2 cursor-pointer transition-colors ${bookingData.paymentMethod === method.id ? 'border-[#003974] bg-[#d6e3ff]/20' : 'border-[#e0e3e5] hover:border-[#c2c6d3]'}`}>
                       <input type="radio" name="paymentMethod" value={method.id} checked={bookingData.paymentMethod === method.id} onChange={handleChange} className="sr-only" />
