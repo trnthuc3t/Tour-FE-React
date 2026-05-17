@@ -7,4 +7,5 @@ export { default as DestinationCard } from './DestinationCard';
 export { default as SearchForm } from './SearchForm';
 export { default as Modal } from './Modal';
 export { default as LoadingSpinner } from './LoadingSpinner';
+export { default as BillPreview } from './BillPreview';
 export { ToastProvider, useToast } from './Toast';

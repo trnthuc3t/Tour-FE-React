@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { LoadingSpinner } from '../components';
+import { LoadingSpinner, BillPreview } from '../components';
 import { useAuthContext } from '../context/AuthContext';
 import orderHistoryService from '../services/orderHistoryService';
 import { formatDateTime, formatPrice } from '../utils';
@@ -18,6 +18,17 @@ function OrderHistoryPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [orders, setOrders] = useState([]);
+  const [expandedOrders, setExpandedOrders] = useState(new Set());
+
+  const toggleOrderExpanded = (orderId) => {
+    const newExpanded = new Set(expandedOrders);
+    if (newExpanded.has(orderId)) {
+      newExpanded.delete(orderId);
+    } else {
+      newExpanded.add(orderId);
+    }
+    setExpandedOrders(newExpanded);
+  };
 
   useEffect(() => {
     let mounted = true;
@@ -122,39 +133,80 @@ function OrderHistoryPage() {
           </div>
         ) : (
           <div className="space-y-4">
-            {orders.map((order) => (
-              <div key={order.id} className="rounded-2xl bg-white p-5 editorial-shadow">
-                <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 border-b border-[#e0e3e5] pb-3 mb-4">
-                  <div>
-                    <p className="text-[#191c1e] font-bold">{order.name}</p>
-                    <p className="text-sm text-[#424751]">Ngay dat: {order.date_order ? formatDateTime(order.date_order) : 'N/A'}</p>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <span className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ${STATUS_STYLE[order.state] || 'bg-[#e0e3e5] text-[#424751]'}`}>
-                      {order.state_label || order.state}
-                    </span>
-                    <p className="text-base font-bold text-[#003974]">{formatPrice(order.amount_total || 0)}</p>
-                  </div>
-                </div>
-
-                <div className="space-y-3">
-                  {(order.lines || []).map((line) => (
-                    <div key={line.id} className="flex items-start gap-3">
-                      {line.image_url ? (
-                        <img src={line.image_url} alt={line.product_name} className="h-12 w-12 rounded-lg object-cover border border-[#e0e3e5]" />
-                      ) : (
-                        <div className="h-12 w-12 rounded-lg bg-[#e0e3e5]" />
-                      )}
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-semibold text-[#191c1e] truncate">{line.product_name}</p>
-                        <p className="text-xs text-[#424751]">So luong: {line.quantity}</p>
+            {orders.map((order) => {
+              const isExpanded = expandedOrders.has(order.id);
+              const lineCount = (order.lines || []).length;
+              const isPaid = order.is_paid === true;
+              
+              return (
+                <div key={order.id} className="rounded-2xl bg-white p-5 editorial-shadow">
+                  <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 border-b border-[#e0e3e5] pb-3 mb-4">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <p className="text-[#191c1e] font-bold">{order.name}</p>
+                        <span
+                          className={`inline-flex rounded-full px-2 py-0.5 text-[11px] font-semibold ${
+                            isPaid ? 'bg-[#c8f7dc] text-[#0f5132]' : 'bg-[#ffdad6] text-[#93000a]'
+                          }`}
+                        >
+                          {isPaid ? 'Đã thanh toán' : 'Chưa thanh toán'}
+                        </span>
                       </div>
-                      <p className="text-sm font-semibold text-[#191c1e]">{formatPrice(line.price_total || line.price_subtotal || 0)}</p>
+                      <p className="text-sm text-[#424751]">Ngay dat: {order.date_order ? formatDateTime(order.date_order) : 'N/A'}</p>
                     </div>
-                  ))}
+                    <div className="flex items-center gap-3">
+                      <span className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ${STATUS_STYLE[order.state] || 'bg-[#e0e3e5] text-[#424751]'}`}>
+                        {order.state_label || order.state}
+                      </span>
+                      <p className="text-base font-bold text-[#003974]">{formatPrice(order.amount_total || 0)}</p>
+                    </div>
+                  </div>
+
+                  {/* Collapsed View */}
+                  {!isExpanded && (
+                    <button
+                      onClick={() => toggleOrderExpanded(order.id)}
+                      className="w-full flex items-center justify-between px-3 py-2 rounded-lg hover:bg-[#f2f4f6] transition-colors text-[#424751] hover:text-[#191c1e]"
+                    >
+                      <span className="text-sm font-semibold">
+                        Xem {lineCount} sản phẩm
+                      </span>
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 14l-7 7m0 0l-7-7m7 7V3" />
+                      </svg>
+                    </button>
+                  )}
+
+                  {/* Expanded View */}
+                  {isExpanded && (
+                    <>
+                      <div className="space-y-3 mb-4">
+                        {(order.lines || []).map((line) => (
+                          <div key={line.id} className="flex items-start gap-3 pb-3 border-b border-[#e0e3e5] last:border-0 last:pb-0">
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-semibold text-[#191c1e]">{line.product_name}</p>
+                              <p className="text-xs text-[#424751] mt-1">Số lượng: {line.quantity}</p>
+                            </div>
+                            <p className="text-sm font-semibold text-[#191c1e] whitespace-nowrap">{formatPrice(line.price_total || line.price_subtotal || 0)}</p>
+                          </div>
+                        ))}
+                      </div>
+
+                      <BillPreview order={order} />
+
+                      <button
+                        onClick={() => toggleOrderExpanded(order.id)}
+                        className="w-full flex items-center justify-center px-3 py-2 rounded-lg hover:bg-[#f2f4f6] transition-colors text-[#424751] hover:text-[#191c1e]"
+                      >
+                        <svg className="w-5 h-5 rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 14l-7 7m0 0l-7-7m7 7V3" />
+                        </svg>
+                      </button>
+                    </>
+                  )}
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>
