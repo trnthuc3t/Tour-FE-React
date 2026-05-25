@@ -101,6 +101,15 @@ const TourDetailPage = () => {
   const [activeDay, setActiveDay] = useState(1);
   const [showBookingModal, setShowBookingModal] = useState(false);
   const [showMapModal, setShowMapModal] = useState(false);
+  const [variantAttributes, setVariantAttributes] = useState([]);
+  const [variants, setVariants] = useState([]);
+  const [selectedAttributeValues, setSelectedAttributeValues] = useState({});
+  const [selectedVariantId, setSelectedVariantId] = useState(null);
+
+  const selectedVariant = variants.find((variant) => Number(variant.id) === Number(selectedVariantId)) || null;
+  const displayedPrice = (!tour?.isCombo && selectedVariant)
+    ? Number(selectedVariant.list_price || 0)
+    : Number(tour?.price || 0);
 
   useEffect(() => {
     const fetchTour = async () => {
@@ -130,6 +139,7 @@ const TourDetailPage = () => {
           isCombo: Boolean(product.is_combo),
           isComboMultipleChoice: Boolean(product.is_combo_multiple_choice),
           isDayTour: Boolean(product.is_day_tour),
+          isSinglePurchaseAvailable: Boolean(product.is_single_purchase_available),
           combos: response?.combos || [],
           highlights: [],
           itinerary: [],
@@ -137,6 +147,26 @@ const TourDetailPage = () => {
           excludes: [],
           reviews: [],
         };
+
+        const attributes = response?.variant_attributes || [];
+        const variantsData = response?.variants || [];
+        const defaultVariantId = response?.default_variant_id || variantsData[0]?.id || null;
+
+        setVariantAttributes(attributes);
+        setVariants(variantsData);
+
+        const defaultVariant = variantsData.find((item) => item.id === defaultVariantId) || variantsData[0] || null;
+        if (defaultVariant) {
+          const initSelection = {};
+          (defaultVariant.attribute_values || []).forEach((attr) => {
+            initSelection[attr.attribute_id] = attr.id;
+          });
+          setSelectedAttributeValues(initSelection);
+          setSelectedVariantId(defaultVariant.id);
+        } else {
+          setSelectedAttributeValues({});
+          setSelectedVariantId(null);
+        }
 
         setTour(mappedTour);
       } catch (error) {
@@ -151,6 +181,36 @@ const TourDetailPage = () => {
   const handleBookNow = () => {
     if (!isAuthenticated) { navigate('/login'); return; }
     setShowBookingModal(true);
+  };
+
+  useEffect(() => {
+    if (!variants.length || !variantAttributes.length || tour?.isCombo) {
+      return;
+    }
+
+    const selectedValueIds = Object.values(selectedAttributeValues).map((value) => Number(value));
+    if (!selectedValueIds.length) {
+      return;
+    }
+
+    const matched = variants.find((variant) => {
+      const variantValueIds = (variant.attribute_value_ids || []).map((value) => Number(value));
+      if (variantValueIds.length !== selectedValueIds.length) {
+        return false;
+      }
+      return selectedValueIds.every((id) => variantValueIds.includes(id));
+    });
+
+    if (matched) {
+      setSelectedVariantId(matched.id);
+    }
+  }, [selectedAttributeValues, variants, variantAttributes, tour?.isCombo]);
+
+  const handleAttributeChange = (attributeId, valueId) => {
+    setSelectedAttributeValues((prev) => ({
+      ...prev,
+      [attributeId]: Number(valueId),
+    }));
   };
 
   if (loading) return <LoadingSpinner fullScreen />;
@@ -237,8 +297,33 @@ const TourDetailPage = () => {
             <div className="bg-white rounded-2xl p-6 editorial-shadow sticky top-24">
               <div className="mb-4">
                 <p className="text-sm text-[#424751]">Giá từ</p>
-                <p className="text-3xl font-bold text-[#003974]">{formatPrice(tour.price)}<span className="text-base font-normal text-[#424751]"> / khách</span></p>
+                <p className="text-3xl font-bold text-[#003974]">{formatPrice(displayedPrice)}<span className="text-base font-normal text-[#424751]"> / khách</span></p>
               </div>
+
+              {!tour.isCombo && variantAttributes.length > 0 && (
+                <div className="mb-5 space-y-3 rounded-xl border border-[#e0e3e5] p-4">
+                  <p className="text-sm font-semibold text-[#191c1e]">Chọn Chi Tiết Sản Dịch Vụ</p>
+                  {variantAttributes.map((attribute) => {
+                    const options = attribute.values || [];
+                    const selected = selectedAttributeValues[attribute.attribute_id] || options[0]?.id || '';
+                    return (
+                      <div key={attribute.attribute_id}>
+                        <label className="mb-1 block text-xs font-medium text-[#424751]">{attribute.attribute_name}</label>
+                        <select
+                          className="input-ghost"
+                          value={selected}
+                          onChange={(e) => handleAttributeChange(attribute.attribute_id, e.target.value)}
+                        >
+                          {options.map((option) => (
+                            <option key={option.id} value={option.id}>{option.name}</option>
+                          ))}
+                        </select>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
               {tour.badge && <span className="inline-block px-3 py-1 text-xs font-semibold bg-[#fe9400] text-white rounded-full mb-4">{tour.badge}</span>}
               <Button variant="secondary" size="xl" fullWidth onClick={handleBookNow}>Đặt Ngay</Button>
               <div className="mt-6 pt-6 border-t border-[#e0e3e5]">
@@ -274,7 +359,7 @@ const TourDetailPage = () => {
             <img src={tour.image} alt={tour.name} className="w-full h-32 object-cover rounded-lg mb-3" />
             <h3 className="font-bold text-[#191c1e]">{tour.name}</h3>
             <p className="text-sm text-[#424751]">{tour.duration} | {tour.destination}</p>
-            <p className="text-lg font-bold text-[#003974] mt-2">{formatPrice(tour.price)} / khách</p>
+            <p className="text-lg font-bold text-[#003974] mt-2">{formatPrice(displayedPrice)} / khách</p>
           </div>
           <p className="text-sm text-[#424751]">Bạn sẽ được chuyển đến trang thanh toán để hoàn tất đặt tour.</p>
           <div className="flex gap-3">
@@ -286,6 +371,8 @@ const TourDetailPage = () => {
                 state: {
                   productId: tour.id,
                   productName: tour.name,
+                  productPrice: displayedPrice,
+                  variantId: selectedVariantId,
                   isCombo: tour.isCombo,
                   isComboMultipleChoice: tour.isComboMultipleChoice,
                   isDayTour: tour.isDayTour,

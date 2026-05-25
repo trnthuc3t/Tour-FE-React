@@ -68,6 +68,8 @@ const BookingPage = () => {
   const [bookingData, setBookingData] = useState({ fullName: '', email: '', phone: '', specialRequests: '', paymentMethod: 'credit_card' });
 
   const productId = location.state?.productId;
+  const variantIdFromState = location.state?.variantId;
+  const productPriceFromState = location.state?.productPrice;
 
   useEffect(() => {
     const fetchProduct = async () => {
@@ -186,7 +188,7 @@ const BookingPage = () => {
     name: product?.name || fallbackTour.name,
     destination: 'Việt Nam',
     duration: '3 Ngày 2 Đêm',
-    price: product?.list_price || fallbackTour.price,
+    price: Number(productPriceFromState ?? product?.list_price ?? fallbackTour.price),
     image: product?.image_url || fallbackTour.image,
     guests: 1,
   };
@@ -221,6 +223,7 @@ const BookingPage = () => {
     try {
       const payload = {
         product_id: tour.id,
+        variant_id: variantIdFromState || undefined,
         product_qty: tour.guests || 1,
         full_name: bookingData.fullName,
         email: bookingData.email,
@@ -277,6 +280,50 @@ const BookingPage = () => {
   const handleCarServiceSelection = (comboId, comboItemId) => {
     setComboSelections((prev) => ({ ...prev, [comboId]: comboItemId }));
   };
+
+  const getComboItemUnitPrice = (item = {}) => {
+    const fixedPrice = Number(item.fixed_price || 0);
+    if (fixedPrice > 0) {
+      return fixedPrice;
+    }
+    return Number(item.extra_price || 0);
+  };
+
+  const comboAdditionalPrice = useMemo(() => {
+    if (!isComboProduct) {
+      return 0;
+    }
+
+    let additional = 0;
+
+    standardCombos.forEach((combo) => {
+      const comboQty = Number(comboQuantities[combo.id] || 0);
+      if (comboQty <= 0) {
+        return;
+      }
+      (combo.items || []).forEach((item) => {
+        const itemQty = Number(item.quantity || 1);
+        additional += getComboItemUnitPrice(item) * itemQty * comboQty;
+      });
+    });
+
+    carServiceCombos.forEach((combo) => {
+      const selectedId = Number(comboSelections[combo.id] || 0);
+      if (!selectedId) {
+        return;
+      }
+      const selectedItem = (combo.items || []).find(
+        (item) => Number(item.combo_item_id || item.id) === selectedId
+      );
+      if (!selectedItem) {
+        return;
+      }
+      const itemQty = Number(selectedItem.quantity || 1);
+      additional += getComboItemUnitPrice(selectedItem) * itemQty;
+    });
+
+    return additional;
+  }, [isComboProduct, standardCombos, carServiceCombos, comboQuantities, comboSelections]);
 
   const handleNextStep = async () => {
     if (currentStep === 1 && isComboQuantityFlow) {
@@ -336,7 +383,8 @@ const BookingPage = () => {
     setCurrentStep(currentStep + 1);
   };
 
-  const totalPrice = tour.price * tour.guests;
+  const basePrice = tour.price * tour.guests;
+  const totalPrice = basePrice + comboAdditionalPrice;
 
   if (loadingProduct) {
     return <LoadingSpinner fullScreen />;
@@ -552,7 +600,7 @@ const BookingPage = () => {
                               {(combo.items || []).map((item) => (
                                 <li key={item.id} className="text-sm text-[#191c1e] flex items-center justify-between">
                                   <span>{item.product_name}</span>
-                                  <span className="text-[#424751]">x {item.quantity || 1}</span>
+                                  <span className="text-[#424751]">x {item.quantity || 1} {getComboItemUnitPrice(item) > 0 ? `(${formatPrice(getComboItemUnitPrice(item))})` : ''}</span>
                                 </li>
                               ))}
                             </ul>
@@ -662,6 +710,9 @@ const BookingPage = () => {
               </div>
               <div className="mt-6 pt-4 border-t border-[#e0e3e5] space-y-2">
                 <div className="flex justify-between text-sm"><span className="text-[#424751]">Giá tour</span><span className="text-[#191c1e]">{formatPrice(tour.price)} × {tour.guests}</span></div>
+                {comboAdditionalPrice > 0 && (
+                  <div className="flex justify-between text-sm"><span className="text-[#424751]">Phụ phí combo</span><span className="text-[#191c1e]">{formatPrice(comboAdditionalPrice)}</span></div>
+                )}
                 <div className="flex justify-between text-sm"><span className="text-[#424751]">Phí dịch vụ</span><span className="text-[#191c1e]">0₫</span></div>
                 <div className="flex justify-between text-lg font-bold pt-2 border-t border-[#e0e3e5]"><span>Tổng Cộng</span><span className="text-[#003974]">{formatPrice(totalPrice)}</span></div>
               </div>

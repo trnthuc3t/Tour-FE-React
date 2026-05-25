@@ -38,25 +38,6 @@ const normalizeProduct = (product = {}) => ({
   image_url: getProductImageUrl(product),
 });
 
-const isComboMultipleChoiceProduct = (product = {}) => {
-  const value = product?.is_combo_multiple_choice;
-
-  if (typeof value === 'boolean') {
-    return value;
-  }
-
-  if (typeof value === 'number') {
-    return value === 1;
-  }
-
-  if (typeof value === 'string') {
-    const normalizedValue = value.trim().toLowerCase();
-    return normalizedValue === '1' || normalizedValue === 'true' || normalizedValue === 'yes';
-  }
-
-  return false;
-};
-
 export const productService = {
 
   /**
@@ -70,9 +51,7 @@ export const productService = {
 
       if (result.code === 200) {
         const payload = result.response || {};
-        const products = (payload.products || [])
-          .filter(isComboMultipleChoiceProduct)
-          .map(normalizeProduct);
+        const products = (payload.products || []).map(normalizeProduct);
         return {
           ...payload,
           products,
