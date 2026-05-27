@@ -9,7 +9,7 @@ const TourListPage = () => {
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
-  const [filters, setFilters] = useState({ destination: '', priceMin: 0, priceMax: 50000000, duration: '', rating: 0 });
+  const [filters, setFilters] = useState({ priceMin: 0, priceMax: 50000000 });
 
   const debouncedSearch = useDebounce(searchQuery, 300);
   const debouncedFilters = useDebounce(filters, 300);
@@ -19,13 +19,13 @@ const TourListPage = () => {
       setLoading(true);
       try {
         const params = {
-          search: debouncedFilters.destination || debouncedSearch,
+          search: debouncedSearch,
           limit: 20,
           offset: 0,
         };
         const data = await productService.getProducts(params);
         // Map Odoo product sang format TourCard
-        const mapped = (data.products || []).map(p => ({
+        const mapped = (data.products || []).map((p) => ({
           id: p.id,
           name: p.name,
           destination: p.destination || 'Việt Nam',
@@ -38,8 +38,13 @@ const TourListPage = () => {
           badgeType: p.badgeType || 'primary',
           image: p.image_url || p.image || '',
         }));
-        setProducts(mapped);
-        setTotal(data.total || 0);
+
+        const filteredByPrice = mapped.filter(
+          (product) => product.price >= debouncedFilters.priceMin && product.price <= debouncedFilters.priceMax
+        );
+
+        setProducts(filteredByPrice);
+        setTotal(filteredByPrice.length);
       } catch (error) {
         console.error('Failed to fetch products:', error);
         setProducts([]);
@@ -49,9 +54,6 @@ const TourListPage = () => {
     };
     fetchProducts();
   }, [debouncedSearch, debouncedFilters]);
-
-  const durationOptions = [{ label: 'Tất cả', value: '' }, { label: '1-3 ngày', value: '1-3' }, { label: '4-7 ngày', value: '4-7' }, { label: '8+ ngày', value: '8+' }];
-  const ratingOptions = [{ label: 'Tất cả', value: 0 }, { label: '4.5+', value: 4.5 }, { label: '4.0+', value: 4.0 }, { label: '3.0+', value: 3.0 }];
 
   return (
     <div className="min-h-screen bg-[#f7f9fb]">
@@ -74,19 +76,6 @@ const TourListPage = () => {
               </div>
 
               <div className="mb-6">
-                <label className="block text-sm font-semibold text-[#191c1e] mb-2">Điểm Đến</label>
-                <select value={filters.destination} onChange={(e) => setFilters({ ...filters, destination: e.target.value })} className="input-ghost">
-                  <option value="">Tất cả điểm đến</option>
-                  <option value="Việt Nam">Việt Nam</option>
-                  <option value="Nhật Bản">Nhật Bản</option>
-                  <option value="Indonesia">Indonesia</option>
-                  <option value="Maldives">Maldives</option>
-                  <option value="Na Uy">Na Uy</option>
-                  <option value="Ý">Ý</option>
-                </select>
-              </div>
-
-              <div className="mb-6">
                 <label className="block text-sm font-semibold text-[#191c1e] mb-2">Mức Giá</label>
                 <div className="flex items-center gap-2">
                   <input type="number" placeholder="Từ" value={filters.priceMin} onChange={(e) => setFilters({ ...filters, priceMin: Number(e.target.value) })} className="input-ghost text-sm" />
@@ -95,27 +84,7 @@ const TourListPage = () => {
                 </div>
               </div>
 
-              <div className="mb-6">
-                <label className="block text-sm font-semibold text-[#191c1e] mb-2">Thời Gian</label>
-                <div className="flex flex-wrap gap-2">
-                  {durationOptions.map((opt) => (
-                    <button key={opt.value} onClick={() => setFilters({ ...filters, duration: opt.value })} className={`px-3 py-1.5 text-sm rounded-full transition-colors ${filters.duration === opt.value ? 'bg-[#003974] text-white' : 'bg-[#f2f4f6] text-[#424751] hover:bg-[#eceef0]'}`}>{opt.label}</button>
-                  ))}
-                </div>
-              </div>
-
-              <div className="mb-6">
-                <label className="block text-sm font-semibold text-[#191c1e] mb-2">Đánh Giá</label>
-                <div className="flex flex-wrap gap-2">
-                  {ratingOptions.map((opt) => (
-                    <button key={opt.value} onClick={() => setFilters({ ...filters, rating: opt.value })} className={`px-3 py-1.5 text-sm rounded-full transition-colors flex items-center gap-1 ${filters.rating === opt.value ? 'bg-[#003974] text-white' : 'bg-[#f2f4f6] text-[#424751] hover:bg-[#eceef0]'}`}>
-                      {opt.value > 0 && <span className="material-symbols-outlined text-sm">star</span>}{opt.label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <button onClick={() => { setFilters({ destination: '', priceMin: 0, priceMax: 50000000, duration: '', rating: 0 }); setSearchQuery(''); }} className="w-full py-2 text-sm text-[#003974] font-semibold hover:bg-[#f2f4f6] rounded-lg transition-colors">Đặt Lại Bộ Lọc</button>
+              <button onClick={() => { setFilters({ priceMin: 0, priceMax: 50000000 }); setSearchQuery(''); }} className="w-full py-2 text-sm text-[#003974] font-semibold hover:bg-[#f2f4f6] rounded-lg transition-colors">Đặt Lại Bộ Lọc</button>
             </div>
           </aside>
 

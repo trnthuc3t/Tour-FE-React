@@ -36,10 +36,10 @@ const HomePage = () => {
   }, []);
 
   const destinations = [
-    { id: 'dest-1', name: 'Việt Nam', location: 'Vịnh Hạ Long', image: 'https://images.unsplash.com/photo-1528360983277-13d401cdc186?w=600&q=80', tourCount: 24 },
-    { id: 'dest-2', name: 'Nhật Bản', location: 'Kyoto', image: 'https://images.unsplash.com/photo-1493976040374-85c8e12f0c0e?w=600&q=80', tourCount: 18 },
-    { id: 'dest-3', name: 'Indonesia', location: 'Bali', image: 'https://images.unsplash.com/photo-1537996194471-e657df975ab4?w=600&q=80', tourCount: 15 },
-    { id: 'dest-4', name: 'Maldives', location: 'Malé', image: 'https://images.unsplash.com/photo-1514282401047-d79a71a590e8?w=600&q=80', tourCount: 8 },
+    { id: 'dest-1', name: 'Việt Nam', location: 'Vịnh Hạ Long, Quảng Ninh', image: 'https://images.unsplash.com/photo-1528127269322-539801943592?w=900&q=80', tourCount: 24 },
+    { id: 'dest-2', name: 'Việt Nam', location: 'Phố cổ Hội An, Quảng Nam', image: 'https://images.unsplash.com/photo-1559592413-7cec4d0cae2b?w=900&q=80', tourCount: 18 },
+    { id: 'dest-3', name: 'Việt Nam', location: 'Đà Lạt, Lâm Đồng', image: 'https://images.unsplash.com/photo-1583417319070-4a69db38a482?w=900&q=80', tourCount: 15 },
+    { id: 'dest-4', name: 'Việt Nam', location: 'Phú Quốc, Kiên Giang', image: 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=900&q=80', tourCount: 12 },
   ];
 
   const whyUsItems = [
