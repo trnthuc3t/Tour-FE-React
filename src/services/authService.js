@@ -53,9 +53,7 @@ export const authService = {
       const result = response.data;
 
       if (result.code === 201 || result.code === 200) {
-        if (result.response?.token) {
-          localStorage.setItem('auth_token', result.response.token);
-        }
+        _extractAuthData(result);
         return result;
       }
 

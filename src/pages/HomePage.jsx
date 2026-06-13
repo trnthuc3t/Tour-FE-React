@@ -1,30 +1,46 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { SearchForm, TourCard, DestinationCard, Button } from '../components';
-import { tourService } from '../services/tourService';
+import { SearchForm, DestinationCard, Button } from '../components';
+import { productService } from '../services/productService';
 
 const HomePage = () => {
-  const [featuredTours, setFeaturedTours] = useState([]);
-  const [destinations, setDestinations] = useState([]);
+  const [featuredProducts, setFeaturedProducts] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const fetchData = async () => {
+    const fetchFeaturedProducts = async () => {
+      setLoading(true);
       try {
-        const [toursRes, destinationsRes] = await Promise.all([
-          tourService.getFeaturedTours(),
-          tourService.getTopDestinations(),
-        ]);
-        setFeaturedTours(toursRes.data);
-        setDestinations(destinationsRes.data);
+        const data = await productService.getProducts({ limit: 4, offset: 0 });
+        const mapped = (data.products || []).map(p => ({
+          id: p.id,
+          name: p.name,
+          destination: p.destination || 'Việt Nam',
+          duration: p.duration || '3 Ngày 2 Đêm',
+          rating: p.rating || 4.5,
+          reviewCount: p.reviewCount || 0,
+          price: p.display_price || p.list_price || 0,
+          badge: p.badge || '',
+          badgeType: p.badgeType || 'primary',
+          image: p.image_url || '',
+        }));
+        setFeaturedProducts(mapped);
       } catch (error) {
-        console.error('Failed to fetch data:', error);
+        console.error('Failed to fetch featured products:', error);
+        setFeaturedProducts([]);
       } finally {
         setLoading(false);
       }
     };
-    fetchData();
+    fetchFeaturedProducts();
   }, []);
+
+  const destinations = [
+    { id: 'dest-1', name: 'Việt Nam', location: 'Vịnh Hạ Long, Quảng Ninh', image: 'https://images.unsplash.com/photo-1528127269322-539801943592?w=900&q=80', tourCount: 24 },
+    { id: 'dest-2', name: 'Việt Nam', location: 'Phố cổ Hội An, Quảng Nam', image: 'https://images.unsplash.com/photo-1559592413-7cec4d0cae2b?w=900&q=80', tourCount: 18 },
+    { id: 'dest-3', name: 'Việt Nam', location: 'Đà Lạt, Lâm Đồng', image: 'https://images.unsplash.com/photo-1583417319070-4a69db38a482?w=900&q=80', tourCount: 15 },
+    { id: 'dest-4', name: 'Việt Nam', location: 'Phú Quốc, Kiên Giang', image: 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=900&q=80', tourCount: 12 },
+  ];
 
   const whyUsItems = [
     { icon: 'verified_user', title: 'An Tâm Tuyệt Đối', description: 'Bảo hiểm du lịch toàn diện và hỗ trợ 24/7 trong suốt hành trình.' },
@@ -42,7 +58,7 @@ const HomePage = () => {
         </div>
 
         <div className="relative z-10 container-main text-center text-white">
-          <p className="label-caps text-[#a4c5ff] mb-4">The Horizon Editorial</p>
+          <p className="label-caps text-[#a4c5ff] mb-4">The Terra Tour</p>
           <h1 className="text-4xl md:text-6xl lg:text-7xl font-bold mb-4 leading-tight">
             KHÁM PHÁ THẾ GIỚI<br />
             <span className="text-[#fe9400]">THEO CÁCH CỦA BẠN</span>
@@ -103,8 +119,41 @@ const HomePage = () => {
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
             {loading ? (
               <div className="col-span-full text-center py-12">Đang tải...</div>
+            ) : featuredProducts.length === 0 ? (
+              <div className="col-span-full text-center py-12 text-[#424751]">Chưa có sản phẩm nào</div>
             ) : (
-              featuredTours.map((tour) => <TourCard key={tour.id} tour={tour} />)
+              featuredProducts.map((product) => {
+                const badgeColors = { primary: 'bg-[#00509d] text-white', secondary: 'bg-[#fe9400] text-white', success: 'bg-[#b3ebff] text-[#001f27]' };
+                return (
+                  <Link key={product.id} to={`/tour/${product.id}`} className="card group block">
+                    <div className="relative aspect-[4/3] overflow-hidden rounded-t-xl">
+                      {product.image ? (
+                        <img src={product.image} alt={product.name} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" />
+                      ) : (
+                        <div className="w-full h-full bg-[#eceef0] flex items-center justify-center">
+                          <span className="material-symbols-outlined text-6xl text-[#c2c6d3]">image</span>
+                        </div>
+                      )}
+                      {product.badge && (
+                        <span className="absolute top-3 left-3 badge">{product.badge}</span>
+                      )}
+                    </div>
+                    <div className="p-4">
+                      <p className="label-caps mb-2">{product.destination}</p>
+                      <h3 className="font-semibold text-[#191c1e] mb-2 line-clamp-2 group-hover:text-[#003974] transition-colors">{product.name}</h3>
+                      <div className="flex items-center justify-between pt-3 border-t border-[#e0e3e5]">
+                        <div>
+                          <span className="text-xs text-[#424751]">Giá từ</span>
+                          <p className="text-lg font-bold text-[#003974]">
+                            {new Intl.NumberFormat('vi-VN').format(product.price)}đ<span className="text-xs font-normal text-[#424751]"> / khách</span>
+                          </p>
+                        </div>
+                        <span className="material-symbols-outlined text-[#003974] group-hover:translate-x-1 transition-transform">arrow_forward</span>
+                      </div>
+                    </div>
+                  </Link>
+                );
+              })
             )}
           </div>
         </div>

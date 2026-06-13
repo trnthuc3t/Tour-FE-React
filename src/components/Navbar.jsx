@@ -33,7 +33,7 @@ const Navbar = () => {
           {/* Logo */}
           <Link to="/" className="flex items-center gap-2">
             <span className="text-xl md:text-2xl font-bold text-[#003974]" style={{ fontFamily: 'Plus Jakarta Sans, sans-serif' }}>
-              The Horizon Editorial
+              The Terra Tour
             </span>
           </Link>
 
@@ -48,15 +48,8 @@ const Navbar = () => {
 
           {/* Right Actions */}
           <div className="flex items-center gap-3">
-            <button className="hidden md:flex p-2 text-[#424751] hover:text-[#003974] transition-colors">
-              <span className="material-symbols-outlined">search</span>
-            </button>
-
             {isAuthenticated ? (
               <div className="flex items-center gap-2">
-                <button onClick={() => navigate('/booking')} className="hidden md:flex px-4 py-2 text-sm font-semibold text-white rounded-full btn-gradient">
-                  Đặt Ngay
-                </button>
                 <div className="relative group">
                   <button className="w-10 h-10 rounded-full bg-[#003974] text-white flex items-center justify-center">
                     <span className="material-symbols-outlined text-xl">person</span>
@@ -66,6 +59,12 @@ const Navbar = () => {
                       <p className="font-semibold text-[#191c1e]">{user?.name}</p>
                       <p className="text-xs text-[#424751]">{user?.email}</p>
                     </div>
+                    <button onClick={() => navigate('/chatbot')} className="w-full px-4 py-2 text-left text-sm text-[#424751] hover:bg-[#f2f4f6] transition-colors">
+                      Chat Bot
+                    </button>
+                    <button onClick={() => navigate('/orders/history')} className="w-full px-4 py-2 text-left text-sm text-[#424751] hover:bg-[#f2f4f6] transition-colors">
+                      Lịch Sử Mua Hàng
+                    </button>
                     <button onClick={handleLogout} className="w-full px-4 py-2 text-left text-sm text-[#ba1a1a] hover:bg-[#f2f4f6] transition-colors">
                       Đăng Xuất
                     </button>
@@ -97,6 +96,16 @@ const Navbar = () => {
                 {link.name}
               </Link>
             ))}
+            {isAuthenticated && (
+              <>
+                <Link to="/chatbot" className="block px-4 py-3 text-[#424751] hover:bg-[#f2f4f6]" onClick={() => setMenuOpen(false)}>
+                  Chat Bot
+                </Link>
+                <Link to="/orders/history" className="block px-4 py-3 text-[#424751] hover:bg-[#f2f4f6]" onClick={() => setMenuOpen(false)}>
+                  Lịch Sử Mua Hàng
+                </Link>
+              </>
+            )}
             {!isAuthenticated && (
               <>
                 <Link to="/login" className="block px-4 py-3 text-[#424751] hover:bg-[#f2f4f6]" onClick={() => setMenuOpen(false)}>Đăng Nhập</Link>

@@ -1,6 +1,6 @@
 import { createBrowserRouter } from 'react-router-dom';
 import { MainLayout, AuthLayout } from '../layouts';
-import { HomePage, LoginPage, RegisterPage, TourListPage, TourDetailPage, BookingPage } from '../pages';
+import { HomePage, LoginPage, RegisterPage, TourListPage, TourDetailPage, BookingPage, OrderHistoryPage, ChatbotPage, PayosReturnPage } from '../pages';
 
 const routes = [
   {
@@ -10,6 +10,10 @@ const routes = [
       { path: '/tours', element: <TourListPage /> },
       { path: '/tour/:id', element: <TourDetailPage /> },
       { path: '/booking', element: <BookingPage /> },
+      { path: '/payment/payos/return', element: <PayosReturnPage /> },
+      { path: '/orders/history', element: <OrderHistoryPage /> },
+      { path: '/chatbot', element: <ChatbotPage /> },
+      // { path: '/livechat-realtime', element: <RealtimeChatPage /> },
     ],
   },
   {

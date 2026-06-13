@@ -19,7 +19,7 @@ const AuthLayout = () => {
         </div>
         <div className="relative z-10 flex flex-col justify-between p-12 text-white">
           <div>
-            <h1 className="text-4xl font-bold mb-2">The Horizon Editorial</h1>
+            <h1 className="text-4xl font-bold mb-2">The Terra Tour</h1>
             <p className="text-white/80">Khám phá thế giới theo cách của bạn</p>
           </div>
           <div className="space-y-6">
@@ -36,7 +36,7 @@ const AuthLayout = () => {
               </div>
             </div>
           </div>
-          <p className="text-sm text-white/60">© {new Date().getFullYear()} The Horizon Editorial</p>
+          <p className="text-sm text-white/60">© {new Date().getFullYear()} The Terra Tour</p>
         </div>
       </div>
 
@@ -44,7 +44,7 @@ const AuthLayout = () => {
       <div className="w-full lg:w-1/2 flex items-center justify-center p-6 md:p-12">
         <div className="w-full max-w-md">
           <div className="lg:hidden text-center mb-8">
-            <h1 className="text-2xl font-bold text-[#003974]">The Horizon Editorial</h1>
+            <h1 className="text-2xl font-bold text-[#003974]">The Terra Tour</h1>
             <p className="text-sm text-[#424751] mt-1">Khám phá thế giới theo cách của bạn</p>
           </div>
           <Outlet />

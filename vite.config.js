@@ -38,7 +38,7 @@ export default defineConfig({
     open: false,
     proxy: {
       '/api': {
-        target: 'http://localhost:8070',
+        target: 'http://localhost:8069',
         changeOrigin: true,
         secure: false,
         cookieDomainRewrite: 'localhost',
@@ -47,10 +47,57 @@ export default defineConfig({
         },
       },
       '/web': {
-        target: 'http://localhost:8070',
+        target: 'http://localhost:8069',
         changeOrigin: true,
         secure: false,
         cookieDomainRewrite: 'localhost',
+      },
+      '/im_livechat': {
+        target: 'http://localhost:8069',
+        changeOrigin: true,
+        secure: false,
+        cookieDomainRewrite: 'localhost',
+      },
+      '/bus': {
+        target: 'http://localhost:8069',
+        changeOrigin: true,
+        secure: false,
+        cookieDomainRewrite: 'localhost',
+      },
+      '/websocket': {
+        target: 'http://localhost:8072',
+        ws: true,
+        changeOrigin: true,
+        secure: false,
+      },
+      '/mail': {
+        target: 'http://localhost:8069',
+        changeOrigin: true,
+        secure: false,
+        cookieDomainRewrite: 'localhost',
+      },
+      '/discuss': {
+        target: 'http://localhost:8069',
+        changeOrigin: true,
+        secure: false,
+        cookieDomainRewrite: 'localhost',
+      },
+      '/web/static': {
+        target: 'http://localhost:8069',
+        changeOrigin: true,
+        secure: false,
+      },
+      '/rag': {
+        target: 'http://localhost:8001',
+        changeOrigin: true,
+        secure: false,
+        rewrite: (path) => path.replace(/^\/rag/, ''),
+      },
+      '/ws': {
+        target: 'ws://localhost:8000',
+        ws: true,
+        changeOrigin: true,
+        secure: false,
       },
     },
   },
