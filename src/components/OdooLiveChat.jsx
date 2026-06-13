@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useAuthContext } from '../context/AuthContext';
 import realtimeChatService from '../services/realtimeChatService';
+import apiClient from '../services/apiClient';
 
 function formatTime(value) {
   if (!value) return '';
@@ -43,6 +44,32 @@ function OdooLiveChat() {
 
     let disposed = false;
 
+    const fetchChatHistory = async (channelId) => {
+      try {
+        const response = await apiClient.get('/api/rt-chat/messages', {
+          params: { channel_id: channelId, after_id: 0 }
+        });
+        if (disposed) return;
+        if (response.data && response.data.code === 200) {
+          const historyMessages = response.data.response.messages || [];
+          setMessages((prev) => {
+            const historyIds = new Set(historyMessages.map(m => Number(m.id)));
+            const newMessages = prev.filter(m => !historyIds.has(Number(m.id)));
+            
+            historyMessages.forEach(msg => {
+              if (msg.id) {
+                knownMessageIdsRef.current.add(Number(msg.id));
+              }
+            });
+            
+            return [...historyMessages, ...newMessages];
+          });
+        }
+      } catch (err) {
+        console.error('Failed to fetch chat history:', err);
+      }
+    };
+
     const connect = () => {
       if (disposed) return;
 
@@ -57,6 +84,7 @@ function OdooLiveChat() {
         onMessage: (payload) => {
           if (payload.type === 'ready') {
             setStatus('Ready');
+            fetchChatHistory(payload.payload.channel_id);
             return;
           }
           if (payload.type === 'message' && payload.payload) {
@@ -116,40 +144,72 @@ function OdooLiveChat() {
   return (
     <>
       {isOpen && (
-        <div className="fixed bottom-24 right-6 z-50 w-[360px] max-w-[calc(100vw-2rem)] rounded-2xl overflow-hidden border border-[#d7dbe0] bg-white shadow-2xl">
-          <div className="px-4 py-3 bg-[#003974] text-white flex items-center justify-between">
-            <div>
-              <p className="text-sm font-semibold">Chat voi Admin</p>
-              <p className="text-[11px] opacity-90">{status}</p>
+        <div className="fixed bottom-24 right-6 z-50 w-[360px] max-w-[calc(100vw-2rem)] h-[480px] rounded-3xl overflow-hidden border border-white/20 bg-white/95 backdrop-blur-md shadow-[0_20px_50px_rgba(0,0,0,0.15)] flex flex-col transition-all duration-300">
+          {/* Header */}
+          <div className="px-4 py-4 bg-gradient-to-r from-[#003974] to-[#00509d] text-white flex items-center justify-between shadow-sm flex-shrink-0">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-full bg-white/10 border border-white/20 flex items-center justify-center text-white shadow-inner">
+                <span className="material-symbols-outlined text-lg text-white">support_agent</span>
+              </div>
+              <div className="text-left">
+                <p className="text-sm font-bold leading-tight">Hỗ Trợ Admin</p>
+                <div className="flex items-center gap-1.5 mt-0.5">
+                  <span className={`w-1.5 h-1.5 rounded-full ${status === 'Ready' || status === 'Connected' ? 'bg-green-400 animate-pulse' : 'bg-orange-400'}`} />
+                  <span className="text-[10px] text-white/85 font-semibold">
+                    {status === 'Ready' || status === 'Connected' ? 'Đang hoạt động' : status}
+                  </span>
+                </div>
+              </div>
             </div>
             <button
               onClick={() => setIsOpen(false)}
-              className="h-8 w-8 rounded-lg hover:bg-white/15"
-              aria-label="Dong chat"
+              className="text-white/80 hover:text-white bg-white/0 hover:bg-white/10 p-1.5 rounded-lg transition-colors flex items-center justify-center"
+              aria-label="Đóng chat"
             >
-              x
+              <span className="material-symbols-outlined text-lg">close</span>
             </button>
           </div>
 
-          <div className="h-[320px] overflow-y-auto px-3 py-3 space-y-2 bg-[#f6f8fb]">
-            {messages.length === 0 && (
-              <p className="text-xs text-[#5b5f68]">Chua co tin nhan nao.</p>
-            )}
-            {messages.map((msg) => (
-              <div
-                key={msg.id}
-                className={`max-w-[85%] rounded-xl px-3 py-2 ${msg.is_mine ? 'ml-auto bg-[#003974] text-white' : 'bg-white border border-[#e0e3e5] text-[#191c1e]'}`}
-              >
-                <p className="text-[11px] opacity-80 mb-1">{msg.author_name || 'Unknown'}</p>
-                <p className="text-sm whitespace-pre-wrap">{plainTextFromHtml(msg.body)}</p>
-                <p className="text-[10px] opacity-70 mt-1">{formatTime(msg.date)}</p>
+          {/* Messages area */}
+          <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3 bg-[#f8fafc] [scrollbar-width:thin]">
+            {messages.length === 0 ? (
+              <div className="h-full flex flex-col items-center justify-center text-center p-4">
+                <span className="material-symbols-outlined text-4xl text-[#003974]/30 mb-2">forum</span>
+                <p className="text-xs font-bold text-[#191c1e]">Bắt đầu chat với Admin</p>
+                <p className="text-[10px] text-gray-400 mt-1 max-w-[200px]">Hãy gửi tin nhắn của bạn. Chúng tôi sẽ phản hồi sớm nhất có thể.</p>
               </div>
-            ))}
+            ) : (
+              messages.map((msg) => (
+                <div
+                  key={msg.id}
+                  className={`max-w-[80%] flex flex-col ${msg.is_mine ? 'ml-auto' : 'mr-auto'}`}
+                >
+                  <div
+                    className={`rounded-2xl px-4 py-2.5 shadow-sm text-xs leading-relaxed ${
+                      msg.is_mine 
+                        ? 'bg-[#003974] text-white rounded-tr-none' 
+                        : 'bg-white border border-[#e0e3e5] text-[#191c1e] rounded-tl-none'
+                    }`}
+                  >
+                    {!msg.is_mine && (
+                      <p className="text-[10px] font-bold text-[#003974] mb-1 leading-none">
+                        {msg.author_name || 'Admin'}
+                      </p>
+                    )}
+                    <p className="whitespace-pre-wrap">{plainTextFromHtml(msg.body)}</p>
+                  </div>
+                  <span className={`text-[9px] text-gray-400 mt-1 pl-1 ${msg.is_mine ? 'text-right pr-1' : ''}`}>
+                    {formatTime(msg.date)}
+                  </span>
+                </div>
+              ))
+            )}
             <div ref={endRef} />
           </div>
 
-          <div className="p-3 border-t border-[#e0e3e5] bg-white">
-            {error && <p className="text-xs text-red-600 mb-2">{error}</p>}
+          {/* Footer Input area */}
+          <div className="p-3 border-t border-[#e0e3e5] bg-white flex-shrink-0">
+            {error && <p className="text-[10px] text-red-600 mb-2 px-1">{error}</p>}
             <div className="flex gap-2">
               <input
                 type="text"
@@ -158,14 +218,15 @@ function OdooLiveChat() {
                 onKeyDown={(e) => {
                   if (e.key === 'Enter') sendMessage();
                 }}
-                placeholder="Nhap tin nhan..."
-                className="flex-1 h-10 rounded-lg border border-[#c4c7cf] px-3 text-sm focus:outline-none focus:ring-2 focus:ring-[#003974]/30"
+                placeholder="Nhập tin nhắn..."
+                className="flex-1 h-10 rounded-full border border-gray-300 px-4 text-xs font-medium focus:outline-none focus:border-[#003974] focus:ring-2 focus:ring-[#003974]/15 bg-gray-50 focus:bg-white transition-all"
               />
               <button
                 onClick={sendMessage}
-                className="h-10 px-4 rounded-lg bg-[#003974] text-white text-sm font-semibold hover:opacity-90"
+                disabled={!input.trim()}
+                className="w-10 h-10 rounded-full bg-[#003974] hover:bg-[#002f5f] disabled:bg-gray-300 text-white flex items-center justify-center transition-all hover:scale-105 active:scale-95 shadow-md flex-shrink-0"
               >
-                Gui
+                <span className="material-symbols-outlined text-white text-base">send</span>
               </button>
             </div>
           </div>
@@ -174,9 +235,12 @@ function OdooLiveChat() {
 
       <button
         onClick={() => setIsOpen((prev) => !prev)}
-        className="fixed bottom-6 right-6 z-50 h-14 px-5 rounded-full bg-[#003974] text-white text-sm font-semibold shadow-xl hover:opacity-90"
+        className="fixed bottom-6 right-6 z-50 w-14 h-14 rounded-full bg-[#003974] text-white flex items-center justify-center shadow-2xl hover:scale-110 active:scale-95 hover:bg-[#002f5f] transition-all duration-300"
+        title={isOpen ? 'Đóng hỗ trợ' : 'Nhắn tin hỗ trợ với Admin'}
       >
-        {isOpen ? 'Đóng chat' : 'Hỗ trợ 💬'}
+        <span className="material-symbols-outlined text-2xl text-white">
+          {isOpen ? 'close' : 'chat'}
+        </span>
       </button>
     </>
   );

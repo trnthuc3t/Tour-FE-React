@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate, Link } from 'react-router-dom';
-import { Button, Input, LoadingSpinner } from '../components';
+import { Button, Input, LoadingSpinner, Modal } from '../components';
 import { formatPrice } from '../utils';
 import { productService } from '../services/productService';
 import { paymentService } from '../services/paymentService';
@@ -100,6 +100,8 @@ const BookingPage = () => {
     paymentMethod: 'credit_card',
     ...(storedBookingResume?.bookingData || {}),
   }));
+  const [acceptedTerms, setAcceptedTerms] = useState(false);
+  const [showTermsModal, setShowTermsModal] = useState(false);
 
   const productId = location.state?.productId ?? storedBookingResume?.productId;
   const variantIdFromState = location.state?.variantId ?? storedBookingResume?.variantId;
@@ -221,6 +223,8 @@ const BookingPage = () => {
     guests: 2,
   };
 
+  const guestsCount = isComboQuantityFlow ? totalStandardComboQuantity : 1;
+
   const tour = {
     id: product?.id || fallbackTour.id,
     name: product?.name || fallbackTour.name,
@@ -228,7 +232,7 @@ const BookingPage = () => {
     duration: '3 Ngày 2 Đêm',
     price: Number(productPriceFromState ?? product?.list_price ?? fallbackTour.price),
     image: product?.image_url || fallbackTour.image,
-    guests: 1,
+    guests: guestsCount,
   };
 
   const handleChange = (e) => {
@@ -339,13 +343,12 @@ const BookingPage = () => {
     return Number(item.extra_price || 0);
   };
 
-  const comboAdditionalPrice = useMemo(() => {
+  const standardComboPrice = useMemo(() => {
     if (!isComboProduct) {
       return 0;
     }
 
     let additional = 0;
-
     standardCombos.forEach((combo) => {
       const comboQty = Number(comboQuantities[combo.id] || 0);
       if (comboQty <= 0) {
@@ -357,6 +360,15 @@ const BookingPage = () => {
       });
     });
 
+    return additional;
+  }, [isComboProduct, standardCombos, comboQuantities]);
+
+  const carServicePrice = useMemo(() => {
+    if (!isComboProduct) {
+      return 0;
+    }
+
+    let additional = 0;
     carServiceCombos.forEach((combo) => {
       const selectedId = Number(comboSelections[combo.id] || 0);
       if (!selectedId) {
@@ -373,7 +385,7 @@ const BookingPage = () => {
     });
 
     return additional;
-  }, [isComboProduct, standardCombos, carServiceCombos, comboQuantities, comboSelections]);
+  }, [isComboProduct, carServiceCombos, comboSelections]);
 
   const handleNextStep = async () => {
     if (currentStep === 1 && isComboQuantityFlow) {
@@ -396,17 +408,17 @@ const BookingPage = () => {
       });
 
       if (!hasAnyStandardComboQuantity) {
-        setSubmitError('Vui long chon so luong lon hon 0 cho it nhat 1 combo thuong.');
+        setSubmitError('Vui lòng chọn số lượng lớn hơn 0.');
         return;
       }
 
       if (!hasAllCarServiceSelections) {
-        setSubmitError('Vui long chon san pham cho tat ca combo Car Service.');
+        setSubmitError('Vui lòng chọn sản phẩm.');
         return;
       }
 
       if (hasInvalidCarServiceSelection) {
-        setSubmitError('Lua chon Car Service khong nam trong khoang min/max hop le theo tong so luong combo.');
+        setSubmitError('Lựa chọn Car Service không nằm trong khoảng min/max hợp lệ theo tổng số lượng combo.');
         return;
       }
 
@@ -433,8 +445,8 @@ const BookingPage = () => {
     setCurrentStep(currentStep + 1);
   };
 
-  const basePrice = tour.price * tour.guests;
-  const totalPrice = basePrice + comboAdditionalPrice;
+  const tourPriceDisplay = (tour.price * tour.guests) + standardComboPrice;
+  const totalPrice = tourPriceDisplay + carServicePrice;
 
   if (loadingProduct) {
     return <LoadingSpinner fullScreen />;
@@ -562,10 +574,7 @@ const BookingPage = () => {
             {currentStep === 1 && isComboQuantityFlow && (
               <div className="bg-white rounded-2xl p-6 md:p-8 editorial-shadow">
                 <h2 className="text-xl font-bold text-[#191c1e] mb-2">Chọn Số Lượng Theo Combo</h2>
-                <p className="text-sm text-[#424751] mb-6">
-                  Combo thuong: nhap so luong nhu cu. Combo Car Service: chon san pham trong combo, khong can nhap so luong.
-                </p>
-
+                
                 <div className="space-y-4">
                   {combos.map((combo) => (
                     <div key={combo.id} className="rounded-xl border border-[#e0e3e5] p-4">
@@ -729,12 +738,40 @@ const BookingPage = () => {
               </div>
             )}
 
+            {currentStep === 2 && (
+              <div className="flex items-start gap-2.5 mt-6 p-4 bg-white rounded-2xl border border-[#e0e3e5] shadow-sm">
+                <input
+                  type="checkbox"
+                  id="accept-terms"
+                  checked={acceptedTerms}
+                  onChange={(e) => setAcceptedTerms(e.target.checked)}
+                  className="mt-1 h-4 w-4 rounded border-[#c2c6d3] text-[#003974] focus:ring-[#003974]/20 cursor-pointer"
+                />
+                <label htmlFor="accept-terms" className="text-sm text-[#424751] leading-relaxed cursor-pointer select-none">
+                  Tôi đã đọc và đồng ý với{' '}
+                  <button
+                    type="button"
+                    onClick={() => setShowTermsModal(true)}
+                    className="font-bold text-[#003974] hover:underline"
+                  >
+                    Điều khoản dịch vụ & Chính sách đặt tour
+                  </button>{' '}
+                  của The Terra Tour.
+                </label>
+              </div>
+            )}
+
             {currentStep < 3 && (
               <div className="flex justify-between mt-6">
                 <Button variant="outline" onClick={() => setCurrentStep(currentStep - 1)} disabled={currentStep === 1}>
                   <span className="flex items-center gap-1"><span className="material-symbols-outlined">arrow_back</span>Quay Lại</span>
                 </Button>
-                <Button variant="primary" onClick={handleNextStep} loading={loading || preparingCombo}>
+                <Button 
+                  variant="primary" 
+                  onClick={handleNextStep} 
+                  loading={loading || preparingCombo}
+                  disabled={currentStep === 2 && !acceptedTerms}
+                >
                   <span className="flex items-center gap-1">
                     {currentStep === 2 ? 'Xác Nhận Thanh Toán' : 'Tiếp Tục'}
                     <span className="material-symbols-outlined">arrow_forward</span>
@@ -759,17 +796,91 @@ const BookingPage = () => {
                 </div>
               </div>
               <div className="mt-6 pt-4 border-t border-[#e0e3e5] space-y-2">
-                <div className="flex justify-between text-sm"><span className="text-[#424751]">Giá tour</span><span className="text-[#191c1e]">{formatPrice(tour.price)} × {tour.guests}</span></div>
-                {comboAdditionalPrice > 0 && (
-                  <div className="flex justify-between text-sm"><span className="text-[#424751]">Phụ phí combo</span><span className="text-[#191c1e]">{formatPrice(comboAdditionalPrice)}</span></div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-[#424751]">Giá tour</span>
+                  <span className="text-[#191c1e]">
+                    {isComboProduct ? formatPrice(tourPriceDisplay) : `${formatPrice(tour.price)} × ${tour.guests}`}
+                  </span>
+                </div>
+                {isComboProduct && carServicePrice > 0 && (
+                  <div className="flex justify-between text-sm">
+                    <span className="text-[#424751]">Phí dịch vụ di chuyển</span>
+                    <span className="text-[#191c1e]">{formatPrice(carServicePrice)}</span>
+                  </div>
                 )}
-                <div className="flex justify-between text-sm"><span className="text-[#424751]">Phí dịch vụ</span><span className="text-[#191c1e]">0₫</span></div>
-                <div className="flex justify-between text-lg font-bold pt-2 border-t border-[#e0e3e5]"><span>Tổng Cộng</span><span className="text-[#003974]">{formatPrice(totalPrice)}</span></div>
+                <div className="flex justify-between text-lg font-bold pt-2 border-t border-[#e0e3e5]">
+                  <span>Tổng Cộng</span>
+                  <span className="text-[#003974]">{formatPrice(totalPrice)}</span>
+                </div>
               </div>
             </div>
           </aside>
         </div>
       </div>
+
+      {/* Terms of Service Modal */}
+      <Modal isOpen={showTermsModal} onClose={() => setShowTermsModal(false)} title="Điều Khoản Dịch Vụ & Chính Sách Đặt Tour" size="lg">
+        <div className="space-y-6 max-h-[60vh] overflow-y-auto pr-2 text-sm text-[#424751] leading-relaxed">
+          <div>
+            <h3 className="font-bold text-[#191c1e] text-base mb-2">1. Quy Định Đăng Ký & Thanh Toán</h3>
+            <p>
+              Khách hàng cần cung cấp đầy đủ thông tin cá nhân chính xác theo hộ chiếu hoặc CCCD khi thực hiện giao dịch đặt tour.
+              Việc thanh toán phải được thực hiện theo đúng phương thức và thời hạn quy định cho từng tour. Yêu cầu đặt tour chỉ được xác nhận chính thức sau khi hệ thống ghi nhận khoản thanh toán thành công.
+            </p>
+          </div>
+
+          <div>
+            <h3 className="font-bold text-[#191c1e] text-base mb-2">2. Chính Sách Hoàn Hủy Tour</h3>
+            <p className="mb-2">Mức phí hủy tour được áp dụng dựa trên thời điểm khách hàng thông báo hủy trước ngày khởi hành:</p>
+            <ul className="list-disc pl-5 space-y-1">
+              <li><strong>Trước từ 15 ngày trở lên:</strong> Miễn phí hủy tour (hoàn 100% số tiền đã đóng).</li>
+              <li><strong>Từ 7 đến 14 ngày:</strong> Phí hủy tour tương đương 50% tổng giá trị tour.</li>
+              <li><strong>Từ 3 đến 6 ngày:</strong> Phí hủy tour tương đương 75% tổng giá trị tour.</li>
+              <li><strong>Trong vòng 72 giờ:</strong> Phí hủy tour tương đương 100% tổng giá trị tour, không hoàn lại tiền.</li>
+            </ul>
+          </div>
+
+          <div>
+            <h3 className="font-bold text-[#191c1e] text-base mb-2">3. Trường Hợp Bất Khả Kháng</h3>
+            <p>
+              The Terra Tour không chịu trách nhiệm bồi thường đối với các thiệt hại hoặc hủy tour phát sinh do các nguyên nhân bất khả kháng như thiên tai, dịch bệnh, chiến tranh, đình công, sự cố kỹ thuật của phương tiện vận chuyển, hoặc các thay đổi lịch trình từ hãng hàng không, cơ quan chính phủ.
+            </p>
+          </div>
+
+          <div>
+            <h3 className="font-bold text-[#191c1e] text-base mb-2">4. Trách Nhiệm Của Khách Hàng</h3>
+            <p>
+              Khách hàng tự chịu trách nhiệm chuẩn bị các giấy tờ cá nhân hợp lệ (CCCD, Hộ chiếu, Visa đối với tour quốc tế) và tự túc có mặt đúng giờ theo lịch trình quy định. Khách hàng phải tuân thủ hướng dẫn của Hướng dẫn viên và các quy định an toàn tại điểm đến.
+            </p>
+          </div>
+
+          <div>
+            <h3 className="font-bold text-[#191c1e] text-base mb-2">5. Bảo Hiểm Du Lịch</h3>
+            <p>
+              Tất cả các tour trọn gói của The Terra Tour đã bao gồm bảo hiểm du lịch toàn diện trong suốt hành trình với mức bồi thường tối đa 100,000,000đ/vụ.
+            </p>
+          </div>
+
+          <div>
+            <h3 className="font-bold text-[#191c1e] text-base mb-2">6. Chính Sách Bảo Mật Thông Tin</h3>
+            <p>
+              Chúng tôi cam kết bảo mật tuyệt đối các thông tin cá nhân thu thập được từ khách hàng. Mọi thông tin chỉ được sử dụng cho mục đích hoàn tất thủ tục đặt chỗ, quản lý đơn hàng trên hệ thống Odoo và liên hệ hỗ trợ trong hành trình.
+            </p>
+          </div>
+        </div>
+        <div className="flex justify-end gap-3 mt-6 pt-4 border-t border-[#e0e3e5]">
+          <Button variant="outline" onClick={() => setShowTermsModal(false)}>Đóng</Button>
+          <Button 
+            variant="primary" 
+            onClick={() => {
+              setAcceptedTerms(true);
+              setShowTermsModal(false);
+            }}
+          >
+            Đồng Ý Điều Khoản
+          </Button>
+        </div>
+      </Modal>
     </div>
   );
 };

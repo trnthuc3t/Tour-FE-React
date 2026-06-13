@@ -86,16 +86,16 @@ function PayosReturnPage() {
           <div className="rounded-xl border border-[#e0e3e5] bg-[#f2f4f6] p-4 text-left space-y-2">
             {orderCode ? (
               <p className="text-sm text-[#424751]">
-                Ma giao dich: <span className="font-semibold text-[#191c1e]">{orderCode}</span>
+                Mã giao dịch: <span className="font-semibold text-[#191c1e]">{orderCode}</span>
               </p>
             ) : null}
             {amount > 0 ? (
               <p className="text-sm text-[#424751]">
-                So tien: <span className="font-semibold text-[#191c1e]">{formatPrice(amount)}</span>
+                Số tiền: <span className="font-semibold text-[#191c1e]">{formatPrice(amount)}</span>
               </p>
             ) : null}
             <p className="text-sm text-[#424751]">
-              Trang thai: <span className={`font-semibold ${isSuccess ? 'text-[#0f6a00]' : 'text-[#93000a]'}`}>{isSuccess ? 'Thanh cong' : 'That bai'}</span>
+              Trạng thái: <span className={`font-semibold ${isSuccess ? 'text-[#0f6a00]' : 'text-[#93000a]'}`}>{isSuccess ? 'Thanh cong' : 'That bai'}</span>
             </p>
           </div>
 
@@ -103,10 +103,10 @@ function PayosReturnPage() {
 
           <div className="flex gap-3 mt-6 justify-center">
             <Link to="/orders/history">
-              <Button variant="outline">Xem lich su don hang</Button>
+              <Button variant="outline">Xem lịch sử mua hàng</Button>
             </Link>
             <Link to="/tours">
-              <Button variant="primary">Tiep tuc dat tour</Button>
+              <Button variant="primary">Tiếp tục đặt tour</Button>
             </Link>
           </div>
         </div>

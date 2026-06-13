@@ -99,21 +99,21 @@ function OrderHistoryPage() {
     <div className="min-h-screen bg-[#f7f9fb] py-8">
       <div className="container-main">
         <div className="mb-6">
-          <h1 className="text-2xl md:text-3xl font-bold text-[#191c1e]">Lich Su Mua Hang</h1>
-          <p className="text-[#424751] mt-2">Khach hang: {user?.name || user?.email || 'User'}</p>
+          <h1 className="text-2xl md:text-3xl font-bold text-[#191c1e]">Lịch Sử Mua Hàng</h1>
+          <p className="text-[#424751] mt-2">Khách Hàng: {user?.name || user?.email || 'User'}</p>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
           <div className="rounded-2xl bg-white p-5 editorial-shadow">
-            <p className="text-sm text-[#424751]">Tong Don Hang</p>
+            <p className="text-sm text-[#424751]">Tổng Đơn Hàng</p>
             <p className="text-2xl font-bold text-[#191c1e] mt-1">{stats.totalOrders}</p>
           </div>
           <div className="rounded-2xl bg-white p-5 editorial-shadow">
-            <p className="text-sm text-[#424751]">Don Da Mua</p>
+            <p className="text-sm text-[#424751]">Đơn Đã Mua</p>
             <p className="text-2xl font-bold text-[#191c1e] mt-1">{stats.completedOrders}</p>
           </div>
           <div className="rounded-2xl bg-white p-5 editorial-shadow">
-            <p className="text-sm text-[#424751]">Tong Gia Tri</p>
+            <p className="text-sm text-[#424751]">Tổng Giá Trị</p>
             <p className="text-2xl font-bold text-[#003974] mt-1">{formatPrice(stats.totalSpent)}</p>
           </div>
         </div>
@@ -126,7 +126,7 @@ function OrderHistoryPage() {
 
         {!orders.length ? (
           <div className="rounded-2xl bg-white p-8 editorial-shadow text-center">
-            <p className="text-[#424751] mb-4">Ban chua co don du lich nao.</p>
+            <p className="text-[#424751] mb-4">Bạn chưa có đơn du lịch nào.</p>
             <Link to="/tours" className="inline-flex items-center rounded-full btn-gradient px-6 py-2 text-white font-semibold">
               Kham Pha Tour
             </Link>
@@ -152,7 +152,7 @@ function OrderHistoryPage() {
                           {isPaid ? 'Đã thanh toán' : 'Chưa thanh toán'}
                         </span>
                       </div>
-                      <p className="text-sm text-[#424751]">Ngay dat: {order.date_order ? formatDateTime(order.date_order) : 'N/A'}</p>
+                      <p className="text-sm text-[#424751]">Ngày đặt: {order.date_order ? formatDateTime(order.date_order) : 'N/A'}</p>
                     </div>
                     <div className="flex items-center gap-3">
                       <span className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ${STATUS_STYLE[order.state] || 'bg-[#e0e3e5] text-[#424751]'}`}>
