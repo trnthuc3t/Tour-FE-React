@@ -23,7 +23,7 @@ const Footer = () => {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 pb-12 border-b border-[#c2c6d3]">
           {/* Brand */}
           <div>
-            <h3 className="text-xl font-bold text-[#003974] mb-4">The Horizon Editorial</h3>
+            <h3 className="text-xl font-bold text-[#003974] mb-4">The Terra Tour</h3>
             <p className="text-sm text-[#424751] mb-4 leading-relaxed">
               Khám phá thế giới theo cách của bạn. Hành trình độc bản, trải nghiệm tuyệt vời.
             </p>
@@ -83,7 +83,7 @@ const Footer = () => {
 
         {/* Bottom */}
         <div className="pt-8 flex flex-col md:flex-row items-center justify-between gap-4">
-          <p className="text-sm text-[#424751]">© {currentYear} The Horizon Editorial. All rights reserved.</p>
+          <p className="text-sm text-[#424751]">© {currentYear} The Terra Tour. All rights reserved.</p>
           <div className="flex items-center gap-1 text-sm text-[#424751]">
             <span className="material-symbols-outlined text-lg">headset_mic</span>
             <span>Hỗ trợ 24/7 | 1900 6868</span>

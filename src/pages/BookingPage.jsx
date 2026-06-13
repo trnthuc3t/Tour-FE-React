@@ -48,28 +48,62 @@ const formatDisplayDate = (value) => {
   }).format(date);
 };
 
+const BOOKING_RESUME_STORAGE_KEY = 'tour_booking_resume';
+
+const parseStoredBookingResume = () => {
+  if (typeof window === 'undefined') {
+    return null;
+  }
+
+  try {
+    const rawValue = window.sessionStorage.getItem(BOOKING_RESUME_STORAGE_KEY);
+    return rawValue ? JSON.parse(rawValue) : null;
+  } catch {
+    return null;
+  }
+};
+
 const BookingPage = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const datesScrollRef = useRef(null);
   const hiddenDateInputRef = useRef(null);
-  const [currentStep, setCurrentStep] = useState(1);
+  const searchParams = new URLSearchParams(location.search);
+  const shouldResumePayosCancel = searchParams.get('resume') === 'payos_cancel';
+  const storedBookingResume = useMemo(
+    () => (shouldResumePayosCancel ? parseStoredBookingResume() : null),
+    [shouldResumePayosCancel]
+  );
+  const [currentStep, setCurrentStep] = useState(() => (
+    shouldResumePayosCancel && storedBookingResume ? 2 : 1
+  ));
   const [loading, setLoading] = useState(false);
   const [loadingProduct, setLoadingProduct] = useState(true);
   const [preparingCombo, setPreparingCombo] = useState(false);
   const [product, setProduct] = useState(null);
   const [combos, setCombos] = useState([]);
-  const [comboQuantities, setComboQuantities] = useState({});
-  const [comboSelections, setComboSelections] = useState({});
-  const [expandedComboItems, setExpandedComboItems] = useState([]);
+  const [comboQuantities, setComboQuantities] = useState(() => storedBookingResume?.comboQuantities || {});
+  const [comboSelections, setComboSelections] = useState(() => storedBookingResume?.comboSelections || {});
+  const [expandedComboItems, setExpandedComboItems] = useState(() => storedBookingResume?.expandedComboItems || []);
   const [orderResult, setOrderResult] = useState(null);
-  const [submitError, setSubmitError] = useState('');
-  const [selectedDepartureDate, setSelectedDepartureDate] = useState(() => formatLocalDateString(addDays(new Date(), 1)));
-  const [bookingData, setBookingData] = useState({ fullName: '', email: '', phone: '', specialRequests: '', paymentMethod: 'credit_card' });
+  const [submitError, setSubmitError] = useState(() => (
+    shouldResumePayosCancel ? 'Thanh toan PayOS da bi huy. Ban co the chon lai phuong thuc thanh toan hoac thu lai PayOS.' : ''
+  ));
+  const [selectedDepartureDate, setSelectedDepartureDate] = useState(
+    () => storedBookingResume?.selectedDepartureDate || formatLocalDateString(addDays(new Date(), 1))
+  );
+  const [bookingData, setBookingData] = useState(() => ({
+    fullName: '',
+    email: '',
+    phone: '',
+    specialRequests: '',
+    paymentMethod: 'credit_card',
+    ...(storedBookingResume?.bookingData || {}),
+  }));
 
-  const productId = location.state?.productId;
-  const variantIdFromState = location.state?.variantId;
-  const productPriceFromState = location.state?.productPrice;
+  const productId = location.state?.productId ?? storedBookingResume?.productId;
+  const variantIdFromState = location.state?.variantId ?? storedBookingResume?.variantId;
+  const productPriceFromState = location.state?.productPrice ?? storedBookingResume?.productPrice;
 
   useEffect(() => {
     const fetchProduct = async () => {
@@ -96,8 +130,12 @@ const BookingPage = () => {
             defaultComboQuantities[combo.id] = 1;
           }
         });
-        setComboQuantities(defaultComboQuantities);
-        setComboSelections(defaultComboSelections);
+        setComboQuantities((prev) => (
+          Object.keys(prev || {}).length ? prev : defaultComboQuantities
+        ));
+        setComboSelections((prev) => (
+          Object.keys(prev || {}).length ? prev : defaultComboSelections
+        ));
       } catch (error) {
         console.error('Failed to fetch booking product:', error);
       } finally {
@@ -240,10 +278,22 @@ const BookingPage = () => {
 
       if (bookingData.paymentMethod === 'payos') {
         const origin = window.location.origin;
+        const resumePayload = {
+          productId: tour.id,
+          variantId: variantIdFromState || null,
+          productPrice: tour.price,
+          bookingData,
+          selectedDepartureDate,
+          comboQuantities,
+          comboSelections,
+          expandedComboItems,
+        };
+        window.sessionStorage.setItem(BOOKING_RESUME_STORAGE_KEY, JSON.stringify(resumePayload));
+
         const paymentResponse = await paymentService.createPayosPayment({
           booking_payload: payload,
           return_url: `${origin}/payment/payos/return`,
-          cancel_url: `${origin}/booking`,
+          cancel_url: `${origin}/booking?resume=payos_cancel`,
           notify_url: `${origin}/api/payments/payos/webhook`,
         });
 

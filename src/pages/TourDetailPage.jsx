@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { Button, LoadingSpinner, Modal } from '../components';
 import { productService } from '../services/productService';
-import { formatPrice, generateStarRating } from '../utils';
+import { formatPrice } from '../utils';
 import { useAuthContext } from '../context/AuthContext';
 
 const stripHtml = (html = '') =>
@@ -109,6 +109,9 @@ const TourDetailPage = () => {
   const selectedVariant = variants.find((variant) => Number(variant.id) === Number(selectedVariantId)) || null;
   const displayedPrice = (!tour?.isCombo && selectedVariant)
     ? Number(selectedVariant.list_price || 0)
+    : Number(tour?.priceFrom ?? tour?.price ?? 0);
+  const bookingPrice = (!tour?.isCombo && selectedVariant)
+    ? Number(selectedVariant.list_price || 0)
     : Number(tour?.price || 0);
 
   useEffect(() => {
@@ -128,6 +131,7 @@ const TourDetailPage = () => {
           rating: 4.5,
           reviewCount: 0,
           price: product.list_price || 0,
+          priceFrom: product.display_price || product.price_from || product.list_price || 0,
           badge: '',
           image: product.image_url || '',
           quotationDescription: product.description || '',
@@ -234,36 +238,37 @@ const TourDetailPage = () => {
         ) : (
           <div className="w-full h-full bg-gradient-to-r from-[#003974] to-[#00509d]" />
         )}
-        <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/30 to-transparent" />
-        <Link to="/tours" className="absolute top-24 left-4 md:left-8 flex items-center gap-2 px-4 py-2 bg-white/20 backdrop-blur-sm rounded-full text-white hover:bg-white/30 transition-colors">
+        <div className="absolute inset-0 bg-gradient-to-t from-[#001b3d]/95 via-[#001b3d]/65 to-transparent" />
+        <Link to="/tours" className="absolute top-24 left-4 md:left-8 flex items-center gap-2 px-4 py-2 bg-white/25 backdrop-blur-sm rounded-full text-white hover:bg-white/35 border border-white/10 shadow-sm transition-colors z-10">
           <span className="material-symbols-outlined">arrow_back</span><span className="hidden sm:inline">Quay lại</span>
         </Link>
         <div className="absolute bottom-0 left-0 right-0 p-6 md:p-12 text-white">
           <div className="container-main">
-            <p className="label-caps text-[#a4c5ff] mb-2">{tour.destination}</p>
-            <h1 className="text-3xl md:text-5xl font-bold mb-2">{tour.name}</h1>
+            <p className="label-caps text-[#ffb874] mb-2 drop-shadow-sm font-bold tracking-widest">{tour.destination}</p>
+            <h1 className="text-3xl md:text-5xl font-bold mb-2 drop-shadow-md leading-tight">{tour.name}</h1>
             {tour.quotationDescription && (
-              <p className="text-xl mb-4 text-white/80">{tour.quotationDescription}</p>
+              <p className="text-lg md:text-xl mb-5 text-white/90 font-light drop-shadow-sm max-w-3xl">{tour.quotationDescription}</p>
             )}
-            <div className="space-y-2 text-sm">
-              <div className="flex flex-wrap items-center gap-3">
-                <span className="flex items-center gap-1"><span className="material-symbols-outlined">schedule</span>{tour.duration}</span>
-                <span className="flex items-center gap-1">
-                  {generateStarRating(tour.rating).map((star, idx) => (
-                    <span key={idx} className="material-symbols-outlined text-[#fe9400] text-sm">{star === 'full' ? 'star' : star === 'half' ? 'star_half' : 'star_border'}</span>
-                  ))}
-                  {tour.rating} ({tour.reviewCount} nhận xét)
+            <div className="space-y-3 text-sm text-white/95 drop-shadow-sm">
+              <div className="flex flex-wrap items-center gap-4">
+                <span className="flex items-center gap-1.5 bg-white/10 px-3 py-1 rounded-full border border-white/10 backdrop-blur-sm">
+                  <span className="material-symbols-outlined text-base">schedule</span>
+                  {tour.duration}
                 </span>
               </div>
               <div className="flex flex-wrap items-center gap-2">
-                <span className="flex items-center gap-1"><span className="material-symbols-outlined">location_on</span>{tour.destination}</span>
+                <span className="flex items-center gap-1.5 bg-white/10 px-3 py-1 rounded-full border border-white/10 backdrop-blur-sm">
+                  <span className="material-symbols-outlined text-base">location_on</span>
+                  {tour.destination}
+                </span>
                 {tour.locationMapUrl && (
                   <button
                     type="button"
                     onClick={() => setShowMapModal(true)}
-                    className="text-sm font-semibold text-[#003974] hover:underline"
+                    className="inline-flex items-center gap-1 px-3 py-1 bg-[#fe9400]/20 hover:bg-[#fe9400]/30 border border-[#fe9400]/30 rounded-full text-xs font-semibold text-[#ffb874] hover:text-white backdrop-blur-sm transition-all duration-200"
                   >
-                    xem chi tiết
+                    <span className="material-symbols-outlined text-sm">map</span>
+                    Xem bản đồ
                   </button>
                 )}
               </div>
@@ -371,7 +376,7 @@ const TourDetailPage = () => {
                 state: {
                   productId: tour.id,
                   productName: tour.name,
-                  productPrice: displayedPrice,
+                  productPrice: bookingPrice,
                   variantId: selectedVariantId,
                   isCombo: tour.isCombo,
                   isComboMultipleChoice: tour.isComboMultipleChoice,

@@ -33,9 +33,20 @@ const getProductImageUrl = (product = {}) => {
   return '';
 };
 
+const getProductDisplayPrice = (product = {}) => {
+  const priceFrom = Number(product.price_from ?? product.combo_price_from);
+  if (Number.isFinite(priceFrom) && priceFrom > 0) {
+    return priceFrom;
+  }
+
+  const listPrice = Number(product.list_price || 0);
+  return Number.isFinite(listPrice) ? listPrice : 0;
+};
+
 const normalizeProduct = (product = {}) => ({
   ...product,
   image_url: getProductImageUrl(product),
+  display_price: getProductDisplayPrice(product),
 });
 
 export const productService = {
@@ -55,7 +66,7 @@ export const productService = {
         return {
           ...payload,
           products,
-          total: products.length,
+          total: payload.total ?? products.length,
         };
       }
 

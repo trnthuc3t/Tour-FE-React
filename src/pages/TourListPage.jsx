@@ -1,15 +1,19 @@
 import { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { TourCard, LoadingSpinner, Input } from '../components';
 import { productService } from '../services/productService';
 import { useDebounce } from '../hooks';
 
 const TourListPage = () => {
+  const [searchParams] = useSearchParams();
   const [products, setProducts] = useState([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [filters, setFilters] = useState({ priceMin: 0, priceMax: 50000000 });
+  const [searchQuery, setSearchQuery] = useState(() => searchParams.get('search') || '');
+  const [filters, setFilters] = useState(() => ({
+    priceMin: searchParams.get('priceMin') || '',
+    priceMax: searchParams.get('priceMax') || '',
+  }));
 
   const debouncedSearch = useDebounce(searchQuery, 300);
   const debouncedFilters = useDebounce(filters, 300);
@@ -20,9 +24,18 @@ const TourListPage = () => {
       try {
         const params = {
           search: debouncedSearch,
-          limit: 20,
+          limit: 100,
           offset: 0,
         };
+        const minPrice = Number(debouncedFilters.priceMin);
+        const maxPrice = Number(debouncedFilters.priceMax);
+        if (debouncedFilters.priceMin !== '' && Number.isFinite(minPrice)) {
+          params.price_min = minPrice;
+        }
+        if (debouncedFilters.priceMax !== '' && Number.isFinite(maxPrice)) {
+          params.price_max = maxPrice;
+        }
+
         const data = await productService.getProducts(params);
         // Map Odoo product sang format TourCard
         const mapped = (data.products || []).map((p) => ({
@@ -33,18 +46,14 @@ const TourListPage = () => {
           durationDays: p.durationDays || 3,
           rating: p.rating || 4.5,
           reviewCount: p.reviewCount || 0,
-          price: p.list_price || 0,
+          price: p.display_price || p.list_price || 0,
           badge: p.badge || '',
           badgeType: p.badgeType || 'primary',
           image: p.image_url || p.image || '',
         }));
 
-        const filteredByPrice = mapped.filter(
-          (product) => product.price >= debouncedFilters.priceMin && product.price <= debouncedFilters.priceMax
-        );
-
-        setProducts(filteredByPrice);
-        setTotal(filteredByPrice.length);
+        setProducts(mapped);
+        setTotal(data.total ?? mapped.length);
       } catch (error) {
         console.error('Failed to fetch products:', error);
         setProducts([]);
@@ -57,10 +66,29 @@ const TourListPage = () => {
 
   return (
     <div className="min-h-screen bg-[#f7f9fb]">
-      <div className="bg-[#eceef0] pt-24 pb-12">
-        <div className="container-main">
-          <h1 className="text-3xl md:text-4xl font-bold text-[#003974] mb-2">Khám Phá Các Tour Du Lịch</h1>
-          <p className="text-[#424751]">Hơn {total || 0} tour du lịch đang chờ bạn khám phá</p>
+      <div className="relative pt-28 pb-14 overflow-hidden">
+        {/* Background Image with Gradient Overlay */}
+        <div className="absolute inset-0 z-0">
+          <img 
+            src="https://images.unsplash.com/photo-1506197603052-3cc9c3a201bd?w=1600&q=80" 
+            alt="Travel background" 
+            className="w-full h-full object-cover object-center scale-105"
+          />
+          <div className="absolute inset-0 bg-gradient-to-r from-[#003974] via-[#003974]/80 to-transparent" />
+          <div className="absolute inset-0 bg-black/20" />
+        </div>
+
+        <div className="relative z-10 container-main text-white">
+          <span className="inline-flex items-center gap-1.5 px-3 py-1 mb-3 text-xs font-semibold tracking-wider text-[#fe9400] uppercase bg-[#fe9400]/10 rounded-full border border-[#fe9400]/20 backdrop-blur-sm">
+            <span className="w-1.5 h-1.5 rounded-full bg-[#fe9400] animate-pulse" />
+            Khám phá thế giới
+          </span>
+          <h1 className="text-3xl md:text-5xl font-bold mb-3 tracking-tight drop-shadow-sm">
+            Khám Phá Các Tour Du Lịch
+          </h1>
+          <p className="text-white/80 text-sm md:text-base max-w-xl font-light">
+            Hơn <span className="text-[#fe9400] font-bold text-lg">{total || 0}</span> tour du lịch đang chờ bạn khám phá. Hành trình trọn vẹn, trải nghiệm độc bản.
+          </p>
         </div>
       </div>
 
@@ -78,13 +106,13 @@ const TourListPage = () => {
               <div className="mb-6">
                 <label className="block text-sm font-semibold text-[#191c1e] mb-2">Mức Giá</label>
                 <div className="flex items-center gap-2">
-                  <input type="number" placeholder="Từ" value={filters.priceMin} onChange={(e) => setFilters({ ...filters, priceMin: Number(e.target.value) })} className="input-ghost text-sm" />
+                  <input type="number" min="0" placeholder="Từ" value={filters.priceMin} onChange={(e) => setFilters({ ...filters, priceMin: e.target.value })} className="input-ghost text-sm" />
                   <span className="text-[#424751]">-</span>
-                  <input type="number" placeholder="Đến" value={filters.priceMax} onChange={(e) => setFilters({ ...filters, priceMax: Number(e.target.value) })} className="input-ghost text-sm" />
+                  <input type="number" min="0" placeholder="Đến" value={filters.priceMax} onChange={(e) => setFilters({ ...filters, priceMax: e.target.value })} className="input-ghost text-sm" />
                 </div>
               </div>
 
-              <button onClick={() => { setFilters({ priceMin: 0, priceMax: 50000000 }); setSearchQuery(''); }} className="w-full py-2 text-sm text-[#003974] font-semibold hover:bg-[#f2f4f6] rounded-lg transition-colors">Đặt Lại Bộ Lọc</button>
+              <button onClick={() => { setFilters({ priceMin: '', priceMax: '' }); setSearchQuery(''); }} className="w-full py-2 text-sm text-[#003974] font-semibold hover:bg-[#f2f4f6] rounded-lg transition-colors">Đặt Lại Bộ Lọc</button>
             </div>
           </aside>
 

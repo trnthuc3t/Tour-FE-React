@@ -1,9 +1,21 @@
-const RAG_SERVICE_URL = '/rag';
+const RAG_PROXY_URL = '/rag';
+
+const buildError = (response, url) => new Error(`RAG request failed (${response.status}) at ${url}`);
+
+const requestRag = async (path, options = {}) => {
+  const baseUrl = RAG_PROXY_URL;
+  const url = `${baseUrl}${path}`;
+  const response = await fetch(url, options);
+  if (!response.ok) {
+    throw buildError(response, url);
+  }
+  return response;
+};
 
 export const chatbotService = {
   async sendQuestion(question, sessionId = null, userId = null) {
     try {
-      const response = await fetch(`${RAG_SERVICE_URL}/chat`, {
+      const response = await requestRag('/chat', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -14,10 +26,6 @@ export const chatbotService = {
           user_id: userId,
         }),
       });
-
-      if (!response.ok) {
-        throw new Error(`Chat error: ${response.status}`);
-      }
 
       const data = await response.json();
       return {
@@ -37,10 +45,7 @@ export const chatbotService = {
 
   async checkStatus() {
     try {
-      const response = await fetch(`${RAG_SERVICE_URL}/status`);
-      if (!response.ok) {
-        throw new Error(`Status check failed: ${response.status}`);
-      }
+      const response = await requestRag('/status');
       return await response.json();
     } catch (error) {
       console.error('Error checking status:', error);
@@ -50,10 +55,7 @@ export const chatbotService = {
 
   async healthCheck() {
     try {
-      const response = await fetch(`${RAG_SERVICE_URL}/health`);
-      if (!response.ok) {
-        throw new Error('Service unavailable');
-      }
+      const response = await requestRag('/health');
       return await response.json();
     } catch (error) {
       console.error('Health check failed:', error);

@@ -19,7 +19,7 @@ const HomePage = () => {
           duration: p.duration || '3 Ngày 2 Đêm',
           rating: p.rating || 4.5,
           reviewCount: p.reviewCount || 0,
-          price: p.list_price || 0,
+          price: p.display_price || p.list_price || 0,
           badge: p.badge || '',
           badgeType: p.badgeType || 'primary',
           image: p.image_url || '',
@@ -58,7 +58,7 @@ const HomePage = () => {
         </div>
 
         <div className="relative z-10 container-main text-center text-white">
-          <p className="label-caps text-[#a4c5ff] mb-4">The Horizon Editorial</p>
+          <p className="label-caps text-[#a4c5ff] mb-4">The Terra Tour</p>
           <h1 className="text-4xl md:text-6xl lg:text-7xl font-bold mb-4 leading-tight">
             KHÁM PHÁ THẾ GIỚI<br />
             <span className="text-[#fe9400]">THEO CÁCH CỦA BẠN</span>
